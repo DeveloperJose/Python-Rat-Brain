@@ -92,10 +92,11 @@ class ImageDialog(QDialog):
         layout = QVBoxLayout()
         
         self.canvas = Graph(self, width=5, height=5, dpi=100)
+        self.canvas.is_interactive = False
         layout.addWidget(self.canvas)
         
         self.setLayout(layout)
-        self.setWindowTitle("Image Region")
+        self.setWindowTitle("Image")
 
         self.canvas.imshow(im)
             
@@ -103,36 +104,81 @@ class Prototype(QWidget):
     def __init__(self, parent = None):
         super(Prototype, self).__init__(parent)
 		
+        # Constants/Vars
+        self.setWindowTitle("Prototype Demo")
+        self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
         self.nissl_root = "nissl"
         self.nissl_ext = ".jpg"
-        self.filename = os.path.join(self.nissl_root, "Level-01.jpg")
+        self.filename = os.path.join(self.nissl_root, "Level-34.jpg")
           
-        layout = QVBoxLayout()
+        # ***** Main Layout
+        main_layout = QVBoxLayout()
+        #main_layout.addStretch(1)
+        
+        # ***** Images
+        images_layout = QHBoxLayout()
+        images_layout.addStretch(1)
+        
+        # Canvas for displaying input images
+        self.canvas = Graph(self, width=1, height=8, dpi=500)
+        self.canvas.corners_callback = self.on_corners_update
+        
+        # Create a box for the input canvas
+        canvasBox = QGroupBox("Input Image")
+        canvasBoxLayout = QVBoxLayout()
+        
+        # Button for opening image files
         self.btn_open = QPushButton("Open Nissl file")
         self.btn_open.clicked.connect(self.open_file)
-        layout.addWidget(self.btn_open)
-
-        self.canvas = Graph(self)
-        self.canvas.corners_callback = self.on_corners_update
-        layout.addWidget(self.canvas)
         
-        self.setLayout(layout)
-        self.setWindowTitle("Prototype Demo")
+        canvasBoxLayout.addWidget(self.btn_open) 
+        canvasBoxLayout.addWidget(self.canvas)
+        
+        canvasBox.setLayout(canvasBoxLayout)        
+        images_layout.addWidget(canvasBox)
 
+        # Canvas for displaying region crops
+        self.region_canvas = Graph(self, width=5, height=5, dpi=100)
+        self.region_canvas.is_interactive = False
+        
+        # Create a box for the region canvas
+        canvasBox = QGroupBox("Selected Region")
+        canvasBoxLayout = QVBoxLayout()
+        
+        self.btn_match = QPushButton("Find best match")
+        self.btn_match.clicked.connect(self.find_match)
+        self.btn_match.setEnabled(False)
+        canvasBoxLayout.addWidget(self.btn_match)
+        
+        canvasBoxLayout.addWidget(self.region_canvas)
+        canvasBox.setLayout(canvasBoxLayout)        
+        images_layout.addWidget(canvasBox)
+
+        # Add images to main layout
+        main_layout.addLayout(images_layout)
+        
+        # ***** Main layout
+        self.setLayout(main_layout)
+
+        # ***** Routines after UI creation
         self.refresh_image()
 		
     def on_corners_update(self):
         count = len(self.canvas.corners)
-        print "corners, count", count
+
         if count == 2:
-            self.canvas.is_interactive = False
-            
+            # Get the selected region
             top_left = self.canvas.corners[0]
             bottom_right = self.canvas.corners[1]            
-            im_region = self.get_im_region(self.im, top_left, bottom_right)
+            im_region = self.get_im_region(self.canvas.im, top_left, bottom_right)
 
-            self.diag = ImageDialog(im=im_region, parent=self)
-            self.diag.exec_()
+            cv2.imwrite("part.jpg", cv2.cvtColor(im_region, cv2.COLOR_RGB2BGR))
+
+            self.region_canvas.imshow(im_region)
+            self.canvas.clear_corners()
+            self.btn_match.setEnabled(True)
+            
+            return False
             
         return True
     
@@ -144,6 +190,9 @@ class Prototype(QWidget):
         
         return im[region_y:region_y+region_width, region_x:region_x+region_height]
         
+    def find_match(self):
+        pass
+    
     def open_file(self):
         new_filename, extra = QFileDialog.getOpenFileName(self, 'Open file', 
                                             self.nissl_root, "Image files (*.jpg *.png)")
@@ -154,13 +203,11 @@ class Prototype(QWidget):
             
     def refresh_image(self):
         im = cv2.imread(self.filename)
+        
         # Convert from Matplotlib BGR to RGB
         im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
         w, h, b = im.shape
         
-        #if self.canvas.corners:
-            #self.canvas.axes.scatter(*zip(*self.canvas.corners), c="r", s=40)
-        self.im = im
         self.canvas.imshow(im)
 
 def main():

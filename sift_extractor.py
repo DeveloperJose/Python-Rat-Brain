@@ -20,15 +20,6 @@ def pickle_sift(keypoints, descriptors):
         temp_array.append(temp)
     return temp_array
 
-def unpickle_sift(array):
-    keypoints = []
-    descriptors = []
-    for point in array:
-        temp_feature = cv2.KeyPoint(x=point[0][0],y=point[0][1],_size=point[1], _angle=point[2], _response=point[3], _octave=point[4], _class_id=point[5])
-        temp_descriptor = point[6]
-        keypoints.append(temp_feature)
-        descriptors.append(temp_descriptor)
-    return keypoints, np.array(descriptors)
 
 # ******************************************* Main Program
 sift = cv2.xfeatures2d.SIFT_create()
@@ -47,7 +38,7 @@ for filename in os.listdir(NISSL_DIR):
         im = cv2.imread(path)
         mask = None
         kp, des = sift.detectAndCompute(im, mask)
-        
+
         print "Extracted in ", (timer() - start_time), "s"
         
         start_time = timer()
