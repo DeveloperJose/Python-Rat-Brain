@@ -8,7 +8,7 @@ ext = ".pdf"
 
 def fetch_atlas_level(level):
     fetch_website(complete_url + str(level).zfill(2) + ext)
-    fetch_website(map_url + str(level).zfill(2) + ext)
+    #fetch_website(map_url + str(level).zfill(2) + ext)
     
 def fetch_website(url):
     file_name = url.split('/')[-1]
