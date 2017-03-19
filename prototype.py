@@ -1,12 +1,89 @@
 # -*- coding: utf-8 -*-
-import sys, os, cv2
+import sys, os, cv2, glob
 import pylab as plt
 import numpy as np
+import pickle
+import pdb
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+
+class Worker(QThread):
+
+    #This is the signal that will be emitted during the processing.
+    #By including int as an argument, it lets the signal know to expect
+    #an integer argument when emitting.
+    startProgress = Signal(int)
+    updateProgress = Signal(int)
+    endProgress = Signal(str, int)
+
+    #You can do any extra things in this init you need, but for this example
+    #nothing else needs to be done expect call the super's init
+    def __init__(self, parent):
+        QThread.__init__(self)        
+        self.parent = parent
+
+    def unpickle_sift(self, array):
+        keypoints = []
+        descriptors = []
+        for point in array:
+            temp_feature = cv2.KeyPoint(x=point[0][0],y=point[0][1],_size=point[1], _angle=point[2], _response=point[3], _octave=point[4], _class_id=point[5])
+            temp_descriptor = point[6]
+            keypoints.append(temp_feature)
+            descriptors.append(temp_descriptor)
+        return keypoints, np.array(descriptors)
+    
+    def set_im(self, im):
+        self.im = im
+        #self.im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        self.sift = cv2.xfeatures2d.SIFT_create()
+        self.kp1, self.des1 = self.sift.detectAndCompute(im, None)
+    
+    #A QThread is run by calling it's start() function, which calls this run()
+    #function in it's own "thread". 
+    def run(self):        
+        best_filename = None
+        best_count = -1        
+
+        index = 1
+        total = len(glob.glob1(self.parent.nissl_root, "*.sift"))
+        
+        # FLANN parameters
+        FLANN_INDEX_KDTREE = 0
+        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+        search_params = dict(checks=50)   # or pass empty dictionary
+        
+        flann = cv2.FlannBasedMatcher(index_params,search_params)
+        
+        # Let subscriber know the total
+        self.startProgress.emit(total)
+        
+        for filename in os.listdir(self.parent.nissl_root):
+            if filename.endswith(".sift"):
+                path = os.path.join(self.parent.nissl_root, filename)
+                raw_sift = pickle.load(open(path, "rb"))
+                kp2, des2 = self.unpickle_sift(raw_sift)
+                
+                matches = flann.knnMatch(des2, self.des1, k=2)
+                
+                # Apply ratio test
+                good = []
+                for m,n in matches:
+                    if m.distance < 0.4*n.distance:
+                        good.append([m])
+                        
+                print ("Matches?", path, len(good))
+                if len(good) > best_count:
+                    best_filename = path
+                    best_count = len(good)
+                    
+                # Update progress
+                self.updateProgress.emit(index)
+                index += 1
+                        
+        self.endProgress.emit(best_filename, best_count)
 
 class Graph(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=10, height=10, dpi=100):
@@ -57,22 +134,22 @@ class Graph(FigureCanvasQTAgg):
             p = np.array([event.xdata, event.ydata])
             
             if self.corners is None:
-                print "setting initial p"
+                print ("setting initial p")
                 self.corners = np.array([p])
-                print self.corners
+                print (self.corners)
             else:
-                print "attempting magic"
+                print ("attempting magic")
                 temp = np.vstack((self.corners, p))
                 self.corners = temp
                 
-                print temp
+                print (temp)
             
             draw_plot = True
             if self.corners_callback:
                 draw_plot = self.corners_callback()
             
             if draw_plot:
-                self.scat = self.axes.scatter(*zip(*self.corners), c="r", s=40)            
+                self.scat = self.axes.scatter(*zip(*self.corners), c="r", s=10)            
                 self.draw()
     
     def imshow(self, im):
@@ -145,10 +222,18 @@ class Prototype(QWidget):
         canvasBox = QGroupBox("Selected Region")
         canvasBoxLayout = QVBoxLayout()
         
+        matchLayout = QHBoxLayout()
         self.btn_match = QPushButton("Find best match")
         self.btn_match.clicked.connect(self.find_match)
         self.btn_match.setEnabled(False)
-        canvasBoxLayout.addWidget(self.btn_match)
+        matchLayout.addWidget(self.btn_match)
+        
+        self.progress_match = QProgressBar()
+        matchLayout.addWidget(self.progress_match)
+        canvasBoxLayout.addLayout(matchLayout)
+        
+        self.label_match = QLabel("Region not matched yet")
+        canvasBoxLayout.addWidget(self.label_match)
         
         canvasBoxLayout.addWidget(self.region_canvas)
         canvasBox.setLayout(canvasBoxLayout)        
@@ -162,17 +247,27 @@ class Prototype(QWidget):
 
         # ***** Routines after UI creation
         self.refresh_image()
+        
+        self.thread_match = Worker(self)
+        self.thread_match.startProgress.connect(self.start_progress)
+        self.thread_match.updateProgress.connect(self.update_progress)
+        self.thread_match.endProgress.connect(self.end_progress)        
 		
     def on_corners_update(self):
         count = len(self.canvas.corners)
-
+        print("Hey listen", count)
         if count == 2:
             # Get the selected region
-            top_left = self.canvas.corners[0]
-            bottom_right = self.canvas.corners[1]            
-            im_region = self.get_im_region(self.canvas.im, top_left, bottom_right)
-
-            cv2.imwrite("part.jpg", cv2.cvtColor(im_region, cv2.COLOR_RGB2BGR))
+            # Note: You can only slice with INTEGERS
+            top_left = self.canvas.corners[0].astype(np.uint64)
+            bottom_right = self.canvas.corners[1].astype(np.uint64)            
+            
+            print ("R")
+            x = top_left[0]
+            y = top_left[1]
+            w = bottom_right[1] - top_left[1]
+            h = bottom_right[0] - top_left[0]
+            im_region = self.canvas.im[y:y+h, x:x+w].copy()
 
             self.region_canvas.imshow(im_region)
             self.canvas.clear_corners()
@@ -181,18 +276,24 @@ class Prototype(QWidget):
             return False
             
         return True
-    
-    def get_im_region(self, im, top_left, bottom_right):
-        region_x = top_left[0]
-        region_y = top_left[1]
-        region_width = bottom_right[1] - top_left[1]
-        region_height = bottom_right[0] - top_left[0]
         
-        return im[region_y:region_y+region_width, region_x:region_x+region_height]
         
     def find_match(self):
-        pass
-    
+        self.thread_match.set_im(self.region_canvas.im)
+        self.thread_match.start()
+        
+    def start_progress(self, total):
+        self.progress_match.setMaximum(total)
+        self.btn_match.setEnabled(False)
+        self.label_match.setText("Searching for match....")
+        
+    def update_progress(self, index):
+        self.progress_match.setValue(index)
+        
+    def end_progress(self, best_filename, best_count):
+        self.btn_match.setEnabled(True)
+        self.label_match.setText("Best Match: " + best_filename + ", " + str(best_count))
+        
     def open_file(self):
         new_filename, extra = QFileDialog.getOpenFileName(self, 'Open file', 
                                             self.nissl_root, "Image files (*.jpg *.png)")

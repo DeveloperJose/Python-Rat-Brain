@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import cv2
 import os
-import cPickle as pickle
+import pickle
 import numpy as np
 from timeit import default_timer as timer
 
@@ -20,44 +20,43 @@ def unpickle_sift(array):
     return keypoints, np.array(descriptors)
 
 # ***** Main Program
-cv2.ocl.setUseOpenCL(False)
 sift = cv2.xfeatures2d.SIFT_create()
 
 im_region = cv2.imread("nissl/part.jpg")
-mask = None
-kp1, des1 = sift.detectAndCompute(im_region, mask)
+gray = cv2.cvtColor(im_region, cv2.COLOR_BGR2GRAY)
+kp1, des1 = sift.detectAndCompute(gray, None)
 
 best_filename = None
 best_count = -1
-distance = 50
+distance = 1000
 
 for filename in os.listdir(NISSL_DIR):
     if filename.endswith(".sift"):
-        print "********** Processing", filename
+        print ("********** Processing", filename)
         path = os.path.join(NISSL_DIR, filename)
         raw_sift = pickle.load(open(path, "rb"))
         kp2, des2 = unpickle_sift(raw_sift)
         
-        bf = cv2.BFMatcher()
-        matches = bf.knnMatch(des1, des2, k=2)
-        
+        # FLANN parameters
         FLANN_INDEX_KDTREE = 0
         index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-        search_params = dict(checks = 50)
+        search_params = dict(checks=100)   # or pass empty dictionary
         
-        flann = cv2.FlannBasedMatcher(index_params, search_params)
+        flann = cv2.FlannBasedMatcher(index_params,search_params)
         
-        matches = flann.knnMatch(des1,des2,k=2)
+        matches = flann.knnMatch(des2,des1,k=2)
         
-        # store all the good matches as per Lowe's ratio test.
-        good = []
-        for m,n in matches:
+        # Need to draw only good matches, so create a mask
+        matchesMask = [[0,0] for i in range(len(matches))]
+        
+        # ratio test as per Lowe's paper
+        for i,(m,n) in enumerate(matches):
             if m.distance < 0.7*n.distance:
-                good.append(m)
+                matchesMask[i]=[1,0]
                 
-        print "Matches", len(good)
-        if len(good) > best_count:
+        print ("Matches", len(matchesMask))
+        if len(matchesMask) > best_count:
             best_filename = path
-            best_count = len(good)
+            best_count = len(matchesMask)
                 
-print "** Best Match:", best_filename, "Count:", best_count
+print ("** Best Match:", best_filename, "Count:", best_count)

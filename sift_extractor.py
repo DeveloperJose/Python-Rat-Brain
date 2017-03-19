@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import cv2
 import os
-import cPickle as pickle
+import pickle
 import numpy as np
 
 from timeit import default_timer as timer
@@ -32,19 +32,20 @@ for filename in os.listdir(NISSL_DIR):
         path = os.path.join(NISSL_DIR, filename)
         sift_path = os.path.splitext(path)[0]+'.sift'
         
-        print "----- Processing ", path
+        print ("----- Processing ", path)
         start_time = timer()
         
         im = cv2.imread(path)
-        mask = None
-        kp, des = sift.detectAndCompute(im, mask)
+        #gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    
+        kp, des = sift.detectAndCompute(im, None)
 
-        print "Extracted in ", (timer() - start_time), "s"
+        print ("Extracted in ", (timer() - start_time), "s")
         
         start_time = timer()
         temp = pickle_sift(kp, des)
         pickle.dump(temp, open(sift_path, "wb"))
         
-        print "Pickling took ", (timer() - start_time), "s"
+        print ("Pickling took ", (timer() - start_time), "s")
         
-print "-----\nDone! Took ", (timer() - program_start), "s"
+print ("-----\nDone! Took ", (timer() - program_start), "s")
