@@ -10,80 +10,65 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
+import config, feature
+
 class Worker(QThread):
 
     #This is the signal that will be emitted during the processing.
     #By including int as an argument, it lets the signal know to expect
     #an integer argument when emitting.
     startProgress = Signal(int)
-    updateProgress = Signal(int)
-    endProgress = Signal(str, int)
+    updateProgress = Signal(int, str)
+    endProgress = Signal(str, int, int)
 
     #You can do any extra things in this init you need, but for this example
     #nothing else needs to be done expect call the super's init
     def __init__(self, parent):
         QThread.__init__(self)        
         self.parent = parent
-
-    def unpickle_sift(self, array):
-        keypoints = []
-        descriptors = []
-        for point in array:
-            temp_feature = cv2.KeyPoint(x=point[0][0],y=point[0][1],_size=point[1], _angle=point[2], _response=point[3], _octave=point[4], _class_id=point[5])
-            temp_descriptor = point[6]
-            keypoints.append(temp_feature)
-            descriptors.append(temp_descriptor)
-        return keypoints, np.array(descriptors)
     
     def set_im(self, im):
         self.im = im
-        #self.im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        self.sift = cv2.xfeatures2d.SIFT_create()
-        self.kp1, self.des1 = self.sift.detectAndCompute(im, None)
+        
+        # Convert from RGB to BGR
+        self.im = cv2.cvtColor(self.im, cv2.COLOR_RGB2BGR)
     
     #A QThread is run by calling it's start() function, which calls this run()
     #function in it's own "thread". 
-    def run(self):        
-        best_filename = None
-        best_count = -1        
+    def run(self):
+        best_filename = ""
+        best_count = -1
+        best_distance = sys.maxsize   
 
-        index = 1
-        total = len(glob.glob1(self.parent.nissl_root, "*.sift"))
-        
-        # FLANN parameters
-        FLANN_INDEX_KDTREE = 0
-        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
-        search_params = dict(checks=50)   # or pass empty dictionary
-        
-        flann = cv2.FlannBasedMatcher(index_params,search_params)
-        
+        kp1, des1 = feature.extract_sift(self.im, True)
+
+        index = 1 # For progressbar updates
+
         # Let subscriber know the total
+        total = len(glob.glob1(config.NISSL_DIR, "*.sift"))
         self.startProgress.emit(total)
-        
-        for filename in os.listdir(self.parent.nissl_root):
+        for filename in os.listdir(config.NISSL_DIR):
             if filename.endswith(".sift"):
-                path = os.path.join(self.parent.nissl_root, filename)
+                path = os.path.join(config.NISSL_DIR, filename)
                 raw_sift = pickle.load(open(path, "rb"))
-                kp2, des2 = self.unpickle_sift(raw_sift)
-                
-                matches = flann.knnMatch(des2, self.des1, k=2)
-                
-                # Apply ratio test
-                good = []
-                for m,n in matches:
-                    if m.distance < 0.4*n.distance:
-                        good.append([m])
+                kp2, des2 = feature.unpickle_sift(raw_sift)
                         
-                print ("Matches?", path, len(good))
-                if len(good) > best_count:
+                matches, largest_distance = feature.match(kp1, des1, kp2, des2, k=2)
+                        
+                #print ("Matches", len(matches))
+                if largest_distance < best_distance:
                     best_filename = path
-                    best_count = len(good)
+                    best_count = len(matches)
+                    best_distance = largest_distance
+                    
+                #pdb.set_trace()
                     
                 # Update progress
-                self.updateProgress.emit(index)
+                self.updateProgress.emit(index, filename)
                 index += 1
                         
-        self.endProgress.emit(best_filename, best_count)
+        print ("end of the roead")
+        self.endProgress.emit(best_filename, best_count, best_distance)
 
 class Graph(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=10, height=10, dpi=100):
@@ -184,9 +169,7 @@ class Prototype(QWidget):
         # Constants/Vars
         self.setWindowTitle("Prototype Demo")
         self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
-        self.nissl_root = "nissl"
-        self.nissl_ext = ".jpg"
-        self.filename = os.path.join(self.nissl_root, "Level-34.jpg")
+        self.filename = os.path.join(config.NISSL_DIR, "Level-34.jpg")
           
         # ***** Main Layout
         main_layout = QVBoxLayout()
@@ -235,6 +218,18 @@ class Prototype(QWidget):
         self.label_match = QLabel("Region not matched yet")
         canvasBoxLayout.addWidget(self.label_match)
         
+        self.label_slider = QLabel("Ratio: " + str(config.RATIO))
+        canvasBoxLayout.addWidget(self.label_slider)
+        
+        self.slider_match = QSlider(Qt.Horizontal)
+        self.slider_match.setMinimum(0)
+        self.slider_match.setMaximum(100)
+        self.slider_match.setValue(int(config.RATIO * 100))
+        self.slider_match.setTickPosition(QSlider.NoTicks)
+        self.slider_match.setTickInterval(1)
+        self.slider_match.valueChanged.connect(self.slider_change)
+        canvasBoxLayout.addWidget(self.slider_match)
+        
         canvasBoxLayout.addWidget(self.region_canvas)
         canvasBox.setLayout(canvasBoxLayout)        
         images_layout.addWidget(canvasBox)
@@ -253,8 +248,14 @@ class Prototype(QWidget):
         self.thread_match.updateProgress.connect(self.update_progress)
         self.thread_match.endProgress.connect(self.end_progress)        
 		
+    def slider_change(self):
+        new_ratio = float(self.slider_match.value() / 100.0)
+        config.RATIO = new_ratio
+        self.label_slider.setText("Ratio: " + str(config.RATIO))
+        
     def on_corners_update(self):
         count = len(self.canvas.corners)
+        print ("ratio", config.RATIO)
         print("Hey listen", count)
         if count == 2:
             # Get the selected region
@@ -268,6 +269,7 @@ class Prototype(QWidget):
             w = bottom_right[1] - top_left[1]
             h = bottom_right[0] - top_left[0]
             im_region = self.canvas.im[y:y+h, x:x+w].copy()
+            cv2.imwrite("part.jpg", im_region)
 
             self.region_canvas.imshow(im_region)
             self.canvas.clear_corners()
@@ -285,29 +287,39 @@ class Prototype(QWidget):
     def start_progress(self, total):
         self.progress_match.setMaximum(total)
         self.btn_match.setEnabled(False)
-        self.label_match.setText("Searching for match....")
+        self.slider_match.setEnabled(False)
         
-    def update_progress(self, index):
+    def update_progress(self, index, filename):
         self.progress_match.setValue(index)
+        #self.label_match.setText("Comparing with " + filename)
         
-    def end_progress(self, best_filename, best_count):
+    def end_progress(self, best_filename, best_count, best_distance):
+        print ("end_progresss")
         self.btn_match.setEnabled(True)
-        self.label_match.setText("Best Match: " + best_filename + ", " + str(best_count))
         
+        if best_count < 0:
+            config.RATIO += 0.1
+            self.label_match.setText("Didn't find a match. Trying with more tolerance.")
+            self.slider_match.setValue(self.slider_match.value() + 1)
+            self.find_match()
+            
+        else:
+            self.label_match.setText("Best Match: " + best_filename + ", " + str(best_count) + ", " + str(best_distance))
+            self.slider_match.setEnabled(True)
+            
     def open_file(self):
         new_filename, extra = QFileDialog.getOpenFileName(self, 'Open file', 
-                                            self.nissl_root, "Image files (*.jpg *.png)")
+                                            config.NISSL_DIR, "Image files (*.jpg *.png)")
         
         if new_filename:
             self.filename = new_filename
             self.refresh_image()
             
     def refresh_image(self):
-        im = cv2.imread(self.filename)
+        im = cv2.imread(self.filename)      
         
         # Convert from Matplotlib BGR to RGB
         im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-        w, h, b = im.shape
         
         self.canvas.imshow(im)
 
@@ -315,6 +327,7 @@ def main():
     app = QApplication(sys.argv)
     ui = Prototype()
     ui.show()
+    
     sys.exit(app.exec_())
 	
 if __name__ == '__main__':
