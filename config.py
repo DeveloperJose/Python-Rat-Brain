@@ -10,4 +10,4 @@ FLANN_SEARCH_PARAMS = dict(checks = 200)
                     
 N_FEATURES = 1000
 MIN_MATCH_COUNT = 15
-RATIO = 0.60
+RATIO = 0.85

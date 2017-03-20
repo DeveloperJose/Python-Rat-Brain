@@ -15,6 +15,7 @@ kp1, des1 = feature.extract_sift(im_region, True)
 best_filename = None
 best_count = -1
 best_distance = sys.maxsize
+results = None
 
 for filename in os.listdir(config.NISSL_DIR):
     if filename.endswith(".sift"):
@@ -23,12 +24,15 @@ for filename in os.listdir(config.NISSL_DIR):
         raw_sift = pickle.load(open(path, "rb"))
         kp2, des2 = feature.unpickle_sift(raw_sift)    
         
-        matches, largest_distance = feature.match(kp1, des1, kp2, des2, k=2)
-                
-        print ("Matches", len(matches))
-        if len(matches) > best_count and largest_distance < best_distance:
-            best_filename = path
-            best_count = len(matches)
-            best_distance = largest_distance
-                
-print ("** Best Match:", best_filename, "Count:", best_count, "Dis:", best_distance)
+        match = feature.match(filename, kp1, des1, kp2, des2, k=2)
+        
+        if match is None:
+            continue
+        
+        if results is None:
+            results = np.array([match])
+        else:
+            results = np.hstack((results, np.array([match])))
+            
+results = sorted(results, key=lambda x:x.comparison_key())
+            

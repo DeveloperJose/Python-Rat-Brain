@@ -5,24 +5,39 @@ import sys
 
 import config
 
-SIFT = cv2.xfeatures2d.SIFT_create()
+SIFT = cv2.xfeatures2d.SIFT_create(nfeatures=400)
 FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PARAMS)
 
-index = 0
-def match(kp1, des1, kp2, des2, k):
-    global index
-    matches = FLANN.knnMatch(des2, des1, k)
+class Match(object):
+    def __init__(self, filename, matches):
+        self.filename = filename
+        self.matches = matches
+        self.largest_match = min(matches, key=lambda x:x.distance)
         
-    print ("matches", len(matches))
+    def comparison_key(self):
+        total = len(self.matches) + self.largest_match.distance
+        return (len(self.matches) / total * 40) + (self.largest_match.distance / total * 60)
+    
+    def to_string_array(self):
+        arr = np.array([
+            self.filename,
+            str(len(self.matches)),
+            str(self.largest_match.distance),
+            str(self.comparison_key())
+            ])
+        
+        return arr
+
+def match(filename, kp1, des1, kp2, des2, k):
+    matches = FLANN.knnMatch(des2, des1, k)
+    
+    # Apply Ratio Test
     matches = [m[0] for m in matches if len(m) == 2 and m[0].distance < m[1].distance * config.RATIO]
     
-    print ("ratio test", len(matches))
-    
     if len(matches) > config.MIN_MATCH_COUNT:
-        largest_match = max(matches, key=lambda x:x.distance)
-        return matches, largest_match.distance
+        return Match(filename, matches)
     else:
-        return [], sys.maxsize
+        return None
     
     #p1 = np.float32([ kp1[m.trainIdx].pt for m in matches ])
     #p2 = np.float32([ kp2[m.queryIdx].pt for m in matches ])

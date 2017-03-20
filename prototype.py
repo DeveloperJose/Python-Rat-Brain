@@ -19,7 +19,7 @@ class Worker(QThread):
     #an integer argument when emitting.
     startProgress = Signal(int)
     updateProgress = Signal(int, str)
-    endProgress = Signal(str, int, int)
+    endProgress = Signal(type(np.array([])))
 
     #You can do any extra things in this init you need, but for this example
     #nothing else needs to be done expect call the super's init
@@ -36,39 +36,34 @@ class Worker(QThread):
     #A QThread is run by calling it's start() function, which calls this run()
     #function in it's own "thread". 
     def run(self):
-        best_filename = ""
-        best_count = -1
-        best_distance = sys.maxsize   
-
+        results = np.array([])
+        index = 1
+        
         kp1, des1 = feature.extract_sift(self.im, True)
-
-        index = 1 # For progressbar updates
-
+        
         # Let subscriber know the total
         total = len(glob.glob1(config.NISSL_DIR, "*.sift"))
         self.startProgress.emit(total)
+        
         for filename in os.listdir(config.NISSL_DIR):
             if filename.endswith(".sift"):
                 path = os.path.join(config.NISSL_DIR, filename)
                 raw_sift = pickle.load(open(path, "rb"))
                 kp2, des2 = feature.unpickle_sift(raw_sift)
                         
-                matches, largest_distance = feature.match(kp1, des1, kp2, des2, k=2)
-                        
-                #print ("Matches", len(matches))
-                if largest_distance < best_distance:
-                    best_filename = path
-                    best_count = len(matches)
-                    best_distance = largest_distance
-                    
-                #pdb.set_trace()
-                    
-                # Update progress
+                match = feature.match(filename, kp1, des1, kp2, des2, k=2)
+                
                 self.updateProgress.emit(index, filename)
                 index += 1
+                
+                if match is None:
+                    continue
+                if results is None:
+                    results = np.array([match])
+                else:
+                    results = np.hstack((results, np.array([match])))
                         
-        print ("end of the roead")
-        self.endProgress.emit(best_filename, best_count, best_distance)
+        self.endProgress.emit(results)
 
 class Graph(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=10, height=10, dpi=100):
@@ -161,6 +156,36 @@ class ImageDialog(QDialog):
         self.setWindowTitle("Image")
 
         self.canvas.imshow(im)
+        
+class ResultsDialog(QDialog):
+    def __init__(self, filename, matches, parent=None):
+        super(ResultsDialog, self).__init__(parent)
+        
+        layout = QVBoxLayout()
+        
+        self.result_list = QTableWidget()
+        self.result_list.setMinimumWidth(750)
+        self.result_list.setMinimumHeight(450)
+        self.result_list.setRowCount(len(matches))
+        self.result_list.setColumnCount(5)
+        self.result_list.setHorizontalHeaderLabels(['Filename', 'Match Count', 'Largest Distance', 'Unused', 'Unused'])
+        
+        row = 0
+        
+        matches = sorted(matches, key=lambda x:x.comparison_key())
+        
+        for match in matches:
+            string_repr = match.to_string_array()
+            self.result_list.setItem(row, 0, QTableWidgetItem(string_repr[0]))
+            self.result_list.setItem(row, 1, QTableWidgetItem(string_repr[1]))
+            self.result_list.setItem(row, 2, QTableWidgetItem(string_repr[2]))
+            self.result_list.setItem(row, 3, QTableWidgetItem(string_repr[3]))
+            row += 1
+        
+        layout.addWidget(self.result_list)
+        
+        self.setLayout(layout)
+        self.setWindowTitle("Results for " + filename)
             
 class Prototype(QWidget):
     def __init__(self, parent = None):
@@ -206,7 +231,7 @@ class Prototype(QWidget):
         canvasBoxLayout = QVBoxLayout()
         
         matchLayout = QHBoxLayout()
-        self.btn_match = QPushButton("Find best match")
+        self.btn_match = QPushButton("Find best matches")
         self.btn_match.clicked.connect(self.find_match)
         self.btn_match.setEnabled(False)
         matchLayout.addWidget(self.btn_match)
@@ -215,19 +240,19 @@ class Prototype(QWidget):
         matchLayout.addWidget(self.progress_match)
         canvasBoxLayout.addLayout(matchLayout)
         
-        self.label_match = QLabel("Region not matched yet")
+        self.label_match = QLabel("Status: Nothing to report")
         canvasBoxLayout.addWidget(self.label_match)
         
-        self.label_slider = QLabel("Ratio: " + str(config.RATIO))
+        self.label_slider = QLabel("")
         canvasBoxLayout.addWidget(self.label_slider)
         
         self.slider_match = QSlider(Qt.Horizontal)
+        self.slider_match.valueChanged.connect(self.slider_change)
         self.slider_match.setMinimum(0)
         self.slider_match.setMaximum(100)
         self.slider_match.setValue(int(config.RATIO * 100))
         self.slider_match.setTickPosition(QSlider.NoTicks)
         self.slider_match.setTickInterval(1)
-        self.slider_match.valueChanged.connect(self.slider_change)
         canvasBoxLayout.addWidget(self.slider_match)
         
         canvasBoxLayout.addWidget(self.region_canvas)
@@ -251,7 +276,7 @@ class Prototype(QWidget):
     def slider_change(self):
         new_ratio = float(self.slider_match.value() / 100.0)
         config.RATIO = new_ratio
-        self.label_slider.setText("Ratio: " + str(config.RATIO))
+        self.label_slider.setText("Tolerance Ratio: " + str(config.RATIO))
         
     def on_corners_update(self):
         count = len(self.canvas.corners)
@@ -291,21 +316,22 @@ class Prototype(QWidget):
         
     def update_progress(self, index, filename):
         self.progress_match.setValue(index)
-        #self.label_match.setText("Comparing with " + filename)
         
-    def end_progress(self, best_filename, best_count, best_distance):
-        print ("end_progresss")
+    def end_progress(self, matches):
         self.btn_match.setEnabled(True)
         
-        if best_count < 0:
+        if len(matches) <= 0:
             config.RATIO += 0.1
-            self.label_match.setText("Didn't find a match. Trying with more tolerance.")
-            self.slider_match.setValue(self.slider_match.value() + 1)
+            self.label_match.setText("Didn't find a match. Trying with a higher tolerance ratio.")
+            self.slider_match.setValue(self.slider_match.value() + 10)
             self.find_match()
             
         else:
-            self.label_match.setText("Best Match: " + best_filename + ", " + str(best_count) + ", " + str(best_distance))
             self.slider_match.setEnabled(True)
+            self.label_match.setText("Found " + str(len(matches)) + " possible matches")
+            
+            results_diag = ResultsDialog(self.filename, matches, self)
+            results_diag.show()
             
     def open_file(self):
         new_filename, extra = QFileDialog.getOpenFileName(self, 'Open file', 
