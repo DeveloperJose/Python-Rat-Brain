@@ -12,6 +12,9 @@ from PyQt5.QtWidgets import *
 
 import config, feature
 
+# TODO: Create SIFT features automatically if not found
+# TODO: Download Nissl files if not found
+
 class Worker(QThread):
 
     #This is the signal that will be emitted during the processing.
@@ -114,16 +117,12 @@ class Graph(FigureCanvasQTAgg):
             p = np.array([event.xdata, event.ydata])
             
             if self.corners is None:
-                print ("setting initial p")
                 self.corners = np.array([p])
-                print (self.corners)
+
             else:
-                print ("attempting magic")
                 temp = np.vstack((self.corners, p))
                 self.corners = temp
                 
-                print (temp)
-            
             draw_plot = True
             if self.corners_callback:
                 draw_plot = self.corners_callback()
@@ -280,21 +279,19 @@ class Prototype(QWidget):
         
     def on_corners_update(self):
         count = len(self.canvas.corners)
-        print ("ratio", config.RATIO)
-        print("Hey listen", count)
+
         if count == 2:
             # Get the selected region
             # Note: You can only slice with INTEGERS
             top_left = self.canvas.corners[0].astype(np.uint64)
             bottom_right = self.canvas.corners[1].astype(np.uint64)            
             
-            print ("R")
             x = top_left[0]
             y = top_left[1]
             w = bottom_right[1] - top_left[1]
             h = bottom_right[0] - top_left[0]
             im_region = self.canvas.im[y:y+h, x:x+w].copy()
-            cv2.imwrite("part.jpg", im_region)
+            #cv2.imwrite("part.jpg", im_region)
 
             self.region_canvas.imshow(im_region)
             self.canvas.clear_corners()

@@ -1,6 +1,9 @@
 # Atlas PDFs
 complete-atlas/
 
+# SIFT descriptors
+*.sift
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
