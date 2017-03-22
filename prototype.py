@@ -298,6 +298,19 @@ class Prototype(QWidget):
                 
             x1, x2, y1, y2 = min(x), max(x), min(y), max(y)
             im_region = self.canvas.im[y1:y2, x1:x2].copy()
+            w, h, c = im_region.shape
+            
+            import scipy.misc
+            # Scale
+            size = (100, 100)
+            print ("Size before scale", im_region.shape)
+            im_region = scipy.misc.imresize(im_region, size)
+            
+            # Rotation
+            angle = 137 # In degrees
+            im_region = scipy.misc.imrotate(im_region, angle)
+            
+            cv2.imwrite("part.jpg", im_region)
             
             self.region_canvas.imshow(im_region)
             self.canvas.clear_corners()
