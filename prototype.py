@@ -93,16 +93,20 @@ class Graph(FigureCanvasQTAgg):
         self.corners_callback = None
         self.corners = None
         
+        self.scatter_plots = []
+        
         figure.canvas.mpl_connect("button_press_event", self.button_press_event)
     
     def clear_corners(self):
         self.corners = None
         
-        # Clear scatterplot overlay if it exists
-        if self.scat:
-            self.scat.remove()
-            self.scat = None    
-            self.draw()
+        # Clear scatterplot overlays if they exist
+        if len(self.scatter_plots) > 0:
+            for plot in self.scatter_plots:
+                plot.remove()
+                
+        self.scatter_plots = []
+        self.draw()
         
     def button_press_event(self, event):
         if not self.is_interactive:
@@ -127,8 +131,9 @@ class Graph(FigureCanvasQTAgg):
             if self.corners_callback:
                 draw_plot = self.corners_callback()
             
-            if draw_plot:
-                self.scat = self.axes.scatter(*zip(*self.corners), c="r", s=10)            
+            if draw_plot:              
+                # Draw new overlay
+                self.scatter_plots.append(self.axes.scatter(*zip(*self.corners), c="r", s=2))            
                 self.draw()
     
     def imshow(self, im):
@@ -275,30 +280,27 @@ class Prototype(QWidget):
     def slider_change(self):
         new_ratio = float(self.slider_match.value() / 100.0)
         config.RATIO = new_ratio
-        self.label_slider.setText("Tolerance Ratio: " + str(config.RATIO))
+        self.label_slider.setText("Distance Ratio Test: " + str(config.RATIO))
         
     def on_corners_update(self):
         count = len(self.canvas.corners)
 
-        if count == 2:
-            # Get the selected region
-            # Note: You can only slice with INTEGERS
-            top_left = self.canvas.corners[0].astype(np.uint64)
-            bottom_right = self.canvas.corners[1].astype(np.uint64)            
+        if count == 4:
+            x, y = [], []
             
-            x = top_left[0]
-            y = top_left[1]
-            w = bottom_right[1] - top_left[1]
-            h = bottom_right[0] - top_left[0]
-            im_region = self.canvas.im[y:y+h, x:x+w].copy()
-            cv2.imwrite("part.jpg", im_region)
-
+            for corner in self.canvas.corners:
+                # Numpy slicing uses integers
+                x.append(corner[0].astype(np.uint64))
+                y.append(corner[1].astype(np.uint64))
+                
+            x1, x2, y1, y2 = min(x), max(x), min(y), max(y)
+            im_region = self.canvas.im[y1:y2, x1:x2].copy()
+            
             self.region_canvas.imshow(im_region)
             self.canvas.clear_corners()
             self.btn_match.setEnabled(True)
-            
-            return False
-            
+
+        # Redraw corner scatterplot            
         return True
         
         
@@ -319,7 +321,7 @@ class Prototype(QWidget):
         
         if len(matches) <= 0:
             config.RATIO += 0.1
-            self.label_match.setText("Didn't find a match. Trying with a higher tolerance ratio.")
+            self.label_match.setText("Didn't find a match. Trying with a higher distance ratio test.")
             self.slider_match.setValue(self.slider_match.value() + 10)
             self.find_match()
             
