@@ -4,6 +4,9 @@ complete-atlas/
 # SIFT descriptors
 *.sift
 
+# KMeans clusters
+*.cluster
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
