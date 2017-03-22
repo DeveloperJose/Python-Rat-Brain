@@ -51,10 +51,12 @@ class Worker(QThread):
         for filename in os.listdir(config.NISSL_DIR):
             if filename.endswith(".sift"):
                 path = os.path.join(config.NISSL_DIR, filename)
+                cluster_path = os.path.splitext(path)[0]+'.cluster'
                 raw_sift = pickle.load(open(path, "rb"))
+                centers2 = pickle.load(open(cluster_path, "rb"))
                 kp2, des2 = feature.unpickle_sift(raw_sift)
                         
-                match = feature.match(filename, kp1, des1, kp2, des2, k=2)
+                match = feature.match(filename, kp1, des1, kp2, centers2, k=2)
                 
                 self.updateProgress.emit(index, filename)
                 index += 1
@@ -131,9 +133,10 @@ class Graph(FigureCanvasQTAgg):
             if self.corners_callback:
                 draw_plot = self.corners_callback()
             
-            if draw_plot:              
+            if draw_plot and self.corners is not None:              
                 # Draw new overlay
-                self.scatter_plots.append(self.axes.scatter(*zip(*self.corners), c="r", s=2))            
+                plot = self.axes.scatter(*zip(*self.corners), c="r", s=2)
+                self.scatter_plots.append(plot)            
                 self.draw()
     
     def imshow(self, im):
@@ -254,7 +257,7 @@ class Prototype(QWidget):
         self.slider_match.valueChanged.connect(self.slider_change)
         self.slider_match.setMinimum(0)
         self.slider_match.setMaximum(100)
-        self.slider_match.setValue(int(config.RATIO * 100))
+        self.slider_match.setValue(int(config.DISTANCE_RATIO * 100))
         self.slider_match.setTickPosition(QSlider.NoTicks)
         self.slider_match.setTickInterval(1)
         canvasBoxLayout.addWidget(self.slider_match)
@@ -279,8 +282,8 @@ class Prototype(QWidget):
 		
     def slider_change(self):
         new_ratio = float(self.slider_match.value() / 100.0)
-        config.RATIO = new_ratio
-        self.label_slider.setText("Distance Ratio Test: " + str(config.RATIO))
+        config.DISTANCE_RATIO = new_ratio
+        self.label_slider.setText("Distance Ratio Test: " + str(config.DISTANCE_RATIO))
         
     def on_corners_update(self):
         count = len(self.canvas.corners)
@@ -320,7 +323,7 @@ class Prototype(QWidget):
         self.btn_match.setEnabled(True)
         
         if len(matches) <= 0:
-            config.RATIO += 0.1
+            config.DISTANCE_RATIO += 0.1
             self.label_match.setText("Didn't find a match. Trying with a higher distance ratio test.")
             self.slider_match.setValue(self.slider_match.value() + 10)
             self.find_match()
