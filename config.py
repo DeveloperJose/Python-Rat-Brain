@@ -8,6 +8,6 @@ FLANN_INDEX_PARAMS = dict(algorithm = FLANN_INDEX_KDTREE,
                           
 FLANN_SEARCH_PARAMS = dict(checks = 200)
                     
-N_FEATURES = 1000
+#N_FEATURES = 1000
 MIN_MATCH_COUNT = 15
-RATIO = 0.85
+RATIO = 0.95

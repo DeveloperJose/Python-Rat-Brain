@@ -19,6 +19,10 @@ results = None
 
 descriptors = None
 
+BOW = cv2.BOWKMeansTrainer(100)
+
+FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PARAMS)
+
 for filename in os.listdir(config.NISSL_DIR):
     if filename.endswith(".sift"):
         print ("********** Processing", filename)
@@ -26,15 +30,16 @@ for filename in os.listdir(config.NISSL_DIR):
         raw_sift = pickle.load(open(path, "rb"))
         kp2, des2 = feature.unpickle_sift(raw_sift)    
         
-        match = feature.match(filename, kp1, des1, kp2, des2, k=2)
+        #sift2 = cv2.xfeatures2d.SIFT_create()
+        #cv2.BOWImgDescriptorExtractor(sift2, cv2.BFMatcher(cv2.NORM_L2))
         
-        if match is None:
-            continue
+        #BOW.add(des2)
         
-        if results is None:
-            results = np.array([match])
-        else:
-            results = np.hstack((results, np.array([match])))
-            
-results = sorted(results, key=lambda x:x.comparison_key())
-            
+        FLANN.add(des2)
+        
+print ("Clustering BOW")
+#dictionary = BOW.cluster()
+
+print ("Training FLANN")
+FLANN.train()
+

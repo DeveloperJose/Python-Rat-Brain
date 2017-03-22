@@ -5,7 +5,7 @@ import sys
 
 import config
 
-SIFT = cv2.xfeatures2d.SIFT_create(nfeatures=400)
+SIFT = cv2.xfeatures2d.SIFT_create()
 FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PARAMS)
 
 class Match(object):
@@ -30,7 +30,7 @@ class Match(object):
 
 def match(filename, kp1, des1, kp2, des2, k):
     matches = FLANN.knnMatch(des2, des1, k)
-    
+
     # Apply Ratio Test
     matches = [m[0] for m in matches if len(m) == 2 and m[0].distance < m[1].distance * config.RATIO]
     

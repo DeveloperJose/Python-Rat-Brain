@@ -291,7 +291,7 @@ class Prototype(QWidget):
             w = bottom_right[1] - top_left[1]
             h = bottom_right[0] - top_left[0]
             im_region = self.canvas.im[y:y+h, x:x+w].copy()
-            #cv2.imwrite("part.jpg", im_region)
+            cv2.imwrite("part.jpg", im_region)
 
             self.region_canvas.imshow(im_region)
             self.canvas.clear_corners()

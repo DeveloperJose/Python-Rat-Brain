@@ -16,7 +16,7 @@ for filename in os.listdir(config.NISSL_DIR):
         
         print ("----- Processing ", path)
         im = cv2.imread(path)
-        kp, des = feature.extract_sift(im, True)
+        kp, des = feature.extract_sift(im, False)
         
         print ("* Descriptors:", len(des))
         temp = feature.pickle_sift(kp, des)
