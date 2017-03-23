@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QAbstractItemView
-
+import numpy as np
 class ResultsDialog(QDialog):
     def __init__(self, filename, matches, parent=None):
         super(ResultsDialog, self).__init__(parent)
@@ -47,9 +47,14 @@ class ResultsDialog(QDialog):
             match = self.matches[row]
 
             im_result = match.result
+            im_result2 = match.result2
 
             image_diag = ImageDialog(im=im_result)
             image_diag.show()
+
+            if not np.array_equal(im_result, im_result2):
+                imag_diag2 = ImageDialog(im=im_result2)
+                imag_diag2.show()
 
 
 class ImageDialog(QDialog):

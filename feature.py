@@ -11,7 +11,7 @@ FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PAR
 BF = cv2.BFMatcher(normType=cv2.NORM_L2)
 
 class Match(object):
-    def __init__(self, nissl_level, matches, H, mask, result):
+    def __init__(self, nissl_level, matches, H, mask, result, result2):
         self.nissl_level = nissl_level
         self.matches = matches
         self.largest_match = max(matches, key=lambda x:x.distance)
@@ -19,6 +19,7 @@ class Match(object):
         self.mask = mask
         self.inlier_count = mask.sum()
         self.result = result
+        self.result2 = result2
 
     def comparison_key(self):
         return self.inlier_count
@@ -134,11 +135,17 @@ def match(im_region, nissl_level):
         drawParameters = dict(matchColor=config.MATCH_LINE_COLOR, singlePointColor=None, matchesMask=matchesMask, flags=2)
         try:
             result = cv2.drawMatches(im_region, kp1, im_nissl, kp2, good_matches, None, **drawParameters)
+
+            im_out = cv2.warpPerspective(im_region, H, (im_nissl.shape[1],im_nissl.shape[0]))
+            good_mask = im_out != 0
+            result2 = im_nissl
+            result2[good_mask] = im_out[good_mask]
         except:
             print("draw matches failed")
             result = im_nissl
+            result2 = im_nissl
 
-        return Match(nissl_level, good_matches, H, mask, result)
+        return Match(nissl_level, good_matches, H, mask, result, result2)
 
     else:
         return None
