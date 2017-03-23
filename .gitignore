@@ -11,7 +11,7 @@ complete-atlas/
 part.*
 
 # Spyder
-.spyproject/workspace.ini
+*.spyproject/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
