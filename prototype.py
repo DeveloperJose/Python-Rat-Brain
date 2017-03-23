@@ -105,6 +105,11 @@ class Prototype(QWidget):
         self.label_match_status = QLabel("Select a region you want to find a match for")
         layout.addWidget(self.label_match_status)
 
+        # *** Canvas (Region Crops)
+        self.canvas_region = Graph(self, width=5, height=5, dpi=100)
+        self.canvas_region.is_interactive = False
+        layout.addWidget(self.canvas_region)
+
         # *** Label (Ratio Test Distance)
         self.label_slider_ratio_test = QLabel("")
         layout.addWidget(self.label_slider_ratio_test)
@@ -112,18 +117,27 @@ class Prototype(QWidget):
         # *** Slider (Ratio Test Distance)
         self.slider_ratio_test = QSlider(Qt.Horizontal)
         self.slider_ratio_test.valueChanged.connect(self.on_slider_change_ratio_test)
-
         self.slider_ratio_test.setMinimum(0)
         self.slider_ratio_test.setMaximum(100)
         self.slider_ratio_test.setValue(int(config.DISTANCE_RATIO * 100))
         self.slider_ratio_test.setTickPosition(QSlider.NoTicks)
         self.slider_ratio_test.setTickInterval(1)
+        self.slider_ratio_test.setEnabled(False)
         layout.addWidget(self.slider_ratio_test)
 
-        # *** Canvas (Region Crops)
-        self.canvas_region = Graph(self, width=5, height=5, dpi=100)
-        self.canvas_region.is_interactive = False
-        layout.addWidget(self.canvas_region)
+        # *** Label (Angle)
+        self.label_angle = QLabel("Angle: 0")
+        layout.addWidget(self.label_angle)
+
+        # *** Slider (Angle)
+        self.slider_angle = QSlider(Qt.Horizontal)
+        self.slider_angle.valueChanged.connect(self.on_slider_change_angle)
+        self.slider_angle.setMinimum(0)
+        self.slider_angle.setMaximum(360)
+        self.slider_angle.setTickPosition(QSlider.NoTicks)
+        self.slider_angle.setTickInterval(1)
+        self.slider_angle.setEnabled(False)
+        layout.addWidget(self.slider_angle)
 
         canvas_box.setLayout(layout)
         return canvas_box
@@ -135,6 +149,15 @@ class Prototype(QWidget):
         new_ratio = float(self.slider_ratio_test.value() / 100.0)
         config.DISTANCE_RATIO = new_ratio
         self.label_slider_ratio_test.setText("Distance Ratio Test: " + str(config.DISTANCE_RATIO))
+
+    def on_slider_change_angle(self):
+        angle = self.slider_angle.value()
+        self.label_angle.setText("Angle: " + str(angle))
+
+        if self.canvas_region.im is not None:
+            import scipy.misc
+            im = scipy.misc.imrotate(self.region, angle)
+            self.canvas_region.imshow(im)
 
     ##################################################################################
     #   Class Functions
@@ -167,15 +190,14 @@ class Prototype(QWidget):
             #print ("Size before scale", im_region.shape)
             #im_region = scipy.misc.imresize(im_region, size)
 
-            # Rotation
-            angle = 137 # In degrees
-            #im_region = scipy.misc.imrotate(im_region, angle)
-
             feature.im_write("part.jpg", im_region)
 
-            self.canvas_region.imshow(im_region)
+            self.region = im_region
+            self.canvas_region.imshow(self.region)
             self.canvas_input.clear_corners()
             self.btn_find_match.setEnabled(True)
+            self.slider_angle.setEnabled(True)
+            self.slider_ratio_test.setEnabled(True)
 
         # Redraw corner scatterplot
         return True
@@ -200,16 +222,27 @@ class Prototype(QWidget):
     ##################################################################################
     def on_thread_match_start(self, total):
         self.progressbar_match.setMaximum(total)
+
+        self.canvas_input.is_interactive = False
+
+        self.btn_open.setEnabled(False)
         self.btn_find_match.setEnabled(False)
+
         self.slider_ratio_test.setEnabled(False)
+        self.slider_angle.setEnabled(False)
 
     def on_thread_match_update(self, index):
         self.progressbar_match.setValue(index)
         self.label_match_status.setText("Matching with plate " + str(index))
 
     def on_thread_match_end(self, matches):
+        self.canvas_input.is_interactive = True
+
+        self.btn_open.setEnabled(True)
         self.btn_find_match.setEnabled(True)
+
         self.slider_ratio_test.setEnabled(True)
+        self.slider_angle.setEnabled(True)
 
         if len(matches) <= 0:
             self.label_match_status.setText("Didn't find a good match.")

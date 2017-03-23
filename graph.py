@@ -26,6 +26,8 @@ class Graph(FigureCanvasQTAgg):
         self.axes.set_xticks(())
         self.axes.set_yticks(())
 
+        self.im = None
+
         self.is_interactive = True
         self.corners_callback = None
         self.corners = None
