@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 NISSL_DIR = "nissl"
 NISSL_EXT = ".jpg"
+NISSL_COUNT = 73
 
 FLANN_INDEX_KDTREE = 0
 FLANN_INDEX_PARAMS = dict(algorithm = FLANN_INDEX_KDTREE,
@@ -8,6 +9,5 @@ FLANN_INDEX_PARAMS = dict(algorithm = FLANN_INDEX_KDTREE,
                           
 FLANN_SEARCH_PARAMS = dict(checks = 200)
                     
-N_CLUSTERS = 10
-MIN_MATCH_COUNT = 4
-DISTANCE_RATIO = 0.95
+MIN_MATCH_COUNT = 15
+DISTANCE_RATIO = 0.8

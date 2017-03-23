@@ -21,7 +21,7 @@ class Worker(QThread):
     #By including int as an argument, it lets the signal know to expect
     #an integer argument when emitting.
     startProgress = Signal(int)
-    updateProgress = Signal(int, str)
+    updateProgress = Signal(int)
     endProgress = Signal(type(np.array([])))
 
     #You can do any extra things in this init you need, but for this example
@@ -32,41 +32,26 @@ class Worker(QThread):
     
     def set_im(self, im):
         self.im = im
-        
-        # Convert from RGB to BGR
-        self.im = cv2.cvtColor(self.im, cv2.COLOR_RGB2BGR)
     
     #A QThread is run by calling it's start() function, which calls this run()
     #function in it's own "thread". 
     def run(self):
         results = np.array([])
-        index = 1
-        
-        kp1, des1 = feature.extract_sift(self.im, True)
         
         # Let subscriber know the total
-        total = len(glob.glob1(config.NISSL_DIR, "*.sift"))
-        self.startProgress.emit(total)
+        self.startProgress.emit(config.NISSL_COUNT)
         
-        for filename in os.listdir(config.NISSL_DIR):
-            if filename.endswith(".sift"):
-                path = os.path.join(config.NISSL_DIR, filename)
-                cluster_path = os.path.splitext(path)[0]+'.cluster'
-                raw_sift = pickle.load(open(path, "rb"))
-                centers2 = pickle.load(open(cluster_path, "rb"))
-                kp2, des2 = feature.unpickle_sift(raw_sift)
-                        
-                match = feature.match(filename, kp1, des1, kp2, centers2, k=2)
+        for nissl_level in range(1, config.NISSL_COUNT + 1):
+            match = feature.match(self.im, nissl_level)
+            self.updateProgress.emit(nissl_level)
                 
-                self.updateProgress.emit(index, filename)
-                index += 1
+            if match is None:
+                continue
                 
-                if match is None:
-                    continue
-                if results is None:
-                    results = np.array([match])
-                else:
-                    results = np.hstack((results, np.array([match])))
+            if results is None:
+                results = np.array([match])
+            else:
+                results = np.hstack((results, np.array([match])))
                         
         self.endProgress.emit(results)
 
@@ -168,18 +153,23 @@ class ResultsDialog(QDialog):
     def __init__(self, filename, matches, parent=None):
         super(ResultsDialog, self).__init__(parent)
         
+        self.filename = filename
+        self.matches = matches
+        
         layout = QVBoxLayout()
         
         self.result_list = QTableWidget()
+        self.result_list.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.result_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.result_list.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.result_list.setMinimumWidth(750)
         self.result_list.setMinimumHeight(450)
         self.result_list.setRowCount(len(matches))
         self.result_list.setColumnCount(5)
-        self.result_list.setHorizontalHeaderLabels(['Filename', 'Match Count', 'Largest Distance', 'Unused', 'Unused'])
+        self.result_list.setHorizontalHeaderLabels(['Plate', 'Match Count', 'Inlier Count', 'Largest Distance', '', ''])
         
         row = 0
-        
-        matches = sorted(matches, key=lambda x:x.comparison_key())
+        matches = sorted(matches, key=lambda x:x.comparison_key(), reverse=True)
         
         for match in matches:
             string_repr = match.to_string_array()
@@ -189,11 +179,26 @@ class ResultsDialog(QDialog):
             self.result_list.setItem(row, 3, QTableWidgetItem(string_repr[3]))
             row += 1
         
+        self.result_list.doubleClicked.connect(self.double_click_table)
+        
         layout.addWidget(self.result_list)
         
         self.setLayout(layout)
         self.setWindowTitle("Results for " + filename)
+    
+    def double_click_table(self):
+        rows = sorted(set(index.row() for index in
+                      self.table.selectedIndexes()))
+        
+        if (len(rows) > 0):
+            row = rows[0]
+            match = self.matches[row]
             
+            im_result = match.result
+        
+            image_diag = ImageDialog(im=im_result, parent=None)
+            image_diag.show()
+        
 class Prototype(QWidget):
     def __init__(self, parent = None):
         super(Prototype, self).__init__(parent)
@@ -303,14 +308,14 @@ class Prototype(QWidget):
             import scipy.misc
             # Scale
             size = (100, 100)
-            print ("Size before scale", im_region.shape)
-            im_region = scipy.misc.imresize(im_region, size)
+            #print ("Size before scale", im_region.shape)
+            #im_region = scipy.misc.imresize(im_region, size)
             
             # Rotation
             angle = 137 # In degrees
-            im_region = scipy.misc.imrotate(im_region, angle)
+            #im_region = scipy.misc.imrotate(im_region, angle)
             
-            cv2.imwrite("part.jpg", im_region)
+            feature.im_write("part.jpg", im_region)
             
             self.region_canvas.imshow(im_region)
             self.canvas.clear_corners()
@@ -320,7 +325,7 @@ class Prototype(QWidget):
         return True
         
         
-    def find_match(self):
+    def find_match(self):        
         self.thread_match.set_im(self.region_canvas.im)
         self.thread_match.start()
         
@@ -329,7 +334,7 @@ class Prototype(QWidget):
         self.btn_match.setEnabled(False)
         self.slider_match.setEnabled(False)
         
-    def update_progress(self, index, filename):
+    def update_progress(self, index):
         self.progress_match.setValue(index)
         
     def end_progress(self, matches):
@@ -357,11 +362,7 @@ class Prototype(QWidget):
             self.refresh_image()
             
     def refresh_image(self):
-        im = cv2.imread(self.filename)      
-        
-        # Convert from Matplotlib BGR to RGB
-        im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-        
+        im = feature.im_read(self.filename)       
         self.canvas.imshow(im)
 
 def main():
