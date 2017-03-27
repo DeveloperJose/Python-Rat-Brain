@@ -186,10 +186,9 @@ class Prototype(QWidget):
 
             import scipy.misc
             # Scale
-            size = (100, 100)
-            #print ("Size before scale", im_region.shape)
-            #im_region = scipy.misc.imresize(im_region, size)
-
+            size = (300, 300)
+            print ("Size before scale", im_region.shape)
+            im_region = scipy.misc.imresize(im_region, size)
             feature.im_write("part.jpg", im_region)
 
             self.region = im_region
