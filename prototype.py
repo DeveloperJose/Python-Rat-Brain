@@ -84,7 +84,7 @@ class Prototype(QWidget):
         layout = QVBoxLayout()
 
         # ================================================================================
-        # ==================== Horizontal Layout (Matches Button + ProgressBar)
+        # ==================== Horizontal Layout (Matches Button + Add Entire Image Button)
         match_layout = QHBoxLayout()
 
         # *** Button (Find Best Match)
@@ -93,13 +93,21 @@ class Prototype(QWidget):
         self.btn_find_match.setEnabled(False)
         match_layout.addWidget(self.btn_find_match)
 
-        # *** ProgressBar (Matching Completion)
-        self.progressbar_match = QProgressBar()
-        match_layout.addWidget(self.progressbar_match)
+        self.btn_add_image = QPushButton("Add entire image")
+        self.btn_add_image.clicked.connect(self.on_click_btn_add_image)
+        match_layout.addWidget(self.btn_add_image)
 
         layout.addLayout(match_layout)
         # ==================== End Horizontal Layout (Match Layout)
         # ================================================================================
+
+        progress_layout = QHBoxLayout()
+        # *** ProgressBar (Matching Completion)
+        self.progressbar_match = QProgressBar()
+        self.progressbar_match.setValue(0)
+        progress_layout.addWidget(self.progressbar_match)
+
+        layout.addLayout(progress_layout)
 
         # *** Label (Matching Status)
         self.label_match_status = QLabel("Select a region you want to find a match for")
@@ -166,6 +174,25 @@ class Prototype(QWidget):
         im = feature.im_read(self.nissl_filename)
         self.canvas_input.imshow(im)
 
+    def set_im_region(self, im_region):
+        w, h, c = im_region.shape
+
+        # Scale
+        #import scipy.misc
+        #size = (300, 300)
+        #print ("Size before scale", im_region.shape)
+        #im_region = scipy.misc.imresize(im_region, size)
+
+        # Saving
+        #feature.im_write("part.jpg", im_region)
+
+        self.region = im_region
+        self.canvas_region.imshow(self.region)
+        self.canvas_input.clear_corners()
+        self.btn_find_match.setEnabled(True)
+        self.slider_angle.setEnabled(True)
+        self.slider_ratio_test.setEnabled(True)
+
     ##################################################################################
     #   Canvas Events
     ##################################################################################
@@ -182,21 +209,7 @@ class Prototype(QWidget):
 
             x1, x2, y1, y2 = min(x), max(x), min(y), max(y)
             im_region = self.canvas_input.im[y1:y2, x1:x2].copy()
-            w, h, c = im_region.shape
-
-            import scipy.misc
-            # Scale
-            size = (300, 300)
-            print ("Size before scale", im_region.shape)
-            im_region = scipy.misc.imresize(im_region, size)
-            feature.im_write("part.jpg", im_region)
-
-            self.region = im_region
-            self.canvas_region.imshow(self.region)
-            self.canvas_input.clear_corners()
-            self.btn_find_match.setEnabled(True)
-            self.slider_angle.setEnabled(True)
-            self.slider_ratio_test.setEnabled(True)
+            self.set_im_region(im_region)
 
         # Redraw corner scatterplot
         return True
@@ -207,6 +220,9 @@ class Prototype(QWidget):
     def on_click_btn_find_match(self):
         self.thread_match.set_im(self.canvas_region.im)
         self.thread_match.start()
+
+    def on_click_btn_add_image(self):
+        self.set_im_region(self.canvas_input.im.copy())
 
     def on_click_btn_open(self):
         new_filename, extra = QFileDialog.getOpenFileName(self, 'Open file',
