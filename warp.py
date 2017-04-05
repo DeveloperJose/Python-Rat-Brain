@@ -7,15 +7,16 @@ import random
 import feature
 
 # Vars
-warp_points = 10
+warp_points = 5
 warp_disp_min = 5
 warp_disp_max = 20
 
-im = feature.im_read('nissl/Level-01.jpg')
+im = feature.im_read('face.jpg')
 h, w = im.shape[:2]
 
-points = None
-points2 = None
+# Include the corners
+points = np.array([[0, 0], [w, 0], [0, h], [w, h]])
+points2 = np.array([[0, 0], [w, 0], [0, h], [w, h]])
 
 for i in range(warp_points):
     rand_x = random.uniform(0, w)
@@ -46,10 +47,17 @@ axes.set_xticks(())
 axes.set_yticks(())
 axes.imshow(im)
 
-plot = axes.scatter(*zip(*points), c="b", s=50)
-plot2 = axes.scatter(*zip(*points2), c="orange", s=50)
+plot = axes.scatter(*zip(*points), c="b", s=5)
+plot2 = axes.scatter(*zip(*points2), c="orange", s=5)
 
-H, mask = cv2.findHomography(points, points2, method=cv2.RANSAC, ransacReprojThreshold=5.0)
-im2 = cv2.warpPerspective(im, H, (w, h))
+#H, mask = cv2.findHomography(points2, points, method=cv2.RANSAC, ransacReprojThreshold=5.0)
+#im2 = cv2.warpPerspective(im, H, (w, h))
+#plt.imshow(im2)
 
-plt.show()
+from skimage.transform import PiecewiseAffineTransform, warp, AffineTransform, SimilarityTransform
+tform = PiecewiseAffineTransform()
+tform.estimate(points, points2)
+
+im2 = warp(im, tform)
+
+plt.imshow(im2)

@@ -147,6 +147,49 @@ class Prototype(QWidget):
         self.slider_angle.setEnabled(False)
         layout.addWidget(self.slider_angle)
 
+        # *** Label (Warp Points)
+        self.label_warp_points = QLabel("")
+        layout.addWidget(self.label_warp_points)
+
+        # *** Slider (Warp Points)
+        self.slider_warp_points = QSlider(Qt.Horizontal)
+        self.slider_warp_points.valueChanged.connect(self.on_slider_change_warp_points)
+        self.slider_warp_points.setMinimum(3)
+        self.slider_warp_points.setMaximum(50)
+        self.slider_warp_points.setTickPosition(QSlider.NoTicks)
+        self.slider_warp_points.setTickInterval(1)
+        self.slider_warp_points.setValue(5)
+        self.slider_warp_points.setEnabled(False)
+        layout.addWidget(self.slider_warp_points)
+
+        # *** Label (Warp Disp Min)
+        self.label_warp_disp_min = QLabel("Min Displacement: ")
+        layout.addWidget(self.label_warp_disp_min)
+
+        # *** Label (Warp Disp Max)
+        self.label_warp_disp_max = QLabel("Max Displacement: ")
+        layout.addWidget(self.label_warp_disp_max)
+
+        from qrangeslider import QRangeSlider
+        self.slider_warp_disp = QRangeSlider()
+        self.slider_warp_disp.setMin(0)
+        self.slider_warp_disp.setMax(15)
+        self.slider_warp_disp.setRange(1, 5)
+        self.slider_warp_disp.setEnabled(False)
+        #self.slider_warp_disp.setBackgroundStyle('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #222, stop:1 #333);')
+        #self.slider_warp_disp.handle.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #282, stop:1 #393);')
+        layout.addWidget(self.slider_warp_disp)
+
+        self.btn_warp = QPushButton("Warp")
+        self.btn_warp.clicked.connect(self.on_click_btn_warp)
+        self.btn_warp.setEnabled(False)
+        layout.addWidget(self.btn_warp)
+
+        self.btn_reset = QPushButton("Reset")
+        self.btn_reset.clicked.connect(self.on_click_btn_reset)
+        self.btn_reset.setEnabled(False)
+        layout.addWidget(self.btn_reset)
+
         canvas_box.setLayout(layout)
         return canvas_box
 
@@ -166,6 +209,10 @@ class Prototype(QWidget):
             import scipy.misc
             im = scipy.misc.imrotate(self.region, angle)
             self.canvas_region.imshow(im)
+
+    def on_slider_change_warp_points(self):
+        points = self.slider_warp_points.value()
+        self.label_warp_points.setText("Warp Points: " + str(points))
 
     ##################################################################################
     #   Class Functions
@@ -190,8 +237,12 @@ class Prototype(QWidget):
         self.canvas_region.imshow(self.region)
         self.canvas_input.clear_corners()
         self.btn_find_match.setEnabled(True)
+        self.btn_warp.setEnabled(True)
+        self.btn_reset.setEnabled(True)
         self.slider_angle.setEnabled(True)
         self.slider_ratio_test.setEnabled(True)
+        self.slider_warp_points.setEnabled(True)
+        self.slider_warp_disp.setEnabled(True)
 
     ##################################################################################
     #   Canvas Events
@@ -223,6 +274,16 @@ class Prototype(QWidget):
 
     def on_click_btn_add_image(self):
         self.set_im_region(self.canvas_input.im.copy())
+
+    def on_click_btn_warp(self):
+        min_disp = self.slider_warp_disp.getRange()[0]
+        max_disp = self.slider_warp_disp.getRange()[1]
+        print("Range: ", min_disp, max_disp)
+        im_warp = feature.warp(self.canvas_region.im, 5, min_disp, max_disp)
+        self.canvas_region.imshow(im_warp)
+
+    def on_click_btn_reset(self):
+        self.set_im_region(self.region)
 
     def on_click_btn_open(self):
         new_filename, extra = QFileDialog.getOpenFileName(self, 'Open file',
