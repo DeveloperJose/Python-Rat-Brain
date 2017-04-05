@@ -173,9 +173,10 @@ class Prototype(QWidget):
         from qrangeslider import QRangeSlider
         self.slider_warp_disp = QRangeSlider()
         self.slider_warp_disp.setMin(0)
-        self.slider_warp_disp.setMax(15)
+        self.slider_warp_disp.setMax(50)
         self.slider_warp_disp.setRange(1, 5)
         self.slider_warp_disp.setEnabled(False)
+        #self.slider_warp_disp.startValueChanged.connect(self.on_slider_warp_disp_start)
         #self.slider_warp_disp.setBackgroundStyle('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #222, stop:1 #333);')
         #self.slider_warp_disp.handle.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #282, stop:1 #393);')
         layout.addWidget(self.slider_warp_disp)
@@ -213,6 +214,12 @@ class Prototype(QWidget):
     def on_slider_change_warp_points(self):
         points = self.slider_warp_points.value()
         self.label_warp_points.setText("Warp Points: " + str(points))
+
+    def on_slider_change_warp_min(self):
+        pass
+
+    def on_slider_change_warp_max(self):
+        pass
 
     ##################################################################################
     #   Class Functions

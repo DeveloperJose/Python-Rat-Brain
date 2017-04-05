@@ -6,6 +6,8 @@ import pickle
 import random
 import config
 
+from skimage.color import rgb2grey
+
 SIFT = cv2.xfeatures2d.SIFT_create()
 FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PARAMS)
 BF = cv2.BFMatcher(normType=cv2.NORM_L2)
@@ -123,6 +125,9 @@ def nissl_load_sift(nissl_level):
 def match(im_region, nissl_level):
     # im_region is colored
     if len(im_region.shape) == 3:
+        if im_region.dtype != np.uint8:
+            im_region = (im_region * 255).astype(np.uint8)
+
         im_region_gray = cv2.cvtColor(im_region, cv2.COLOR_RGB2GRAY)
 
     kp1, des1 = extract_sift(im_region_gray)
