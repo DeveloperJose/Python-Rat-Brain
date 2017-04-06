@@ -9,7 +9,7 @@ NISSL_DIR = "nissl"
 NISSL_EXT = ".jpg"
 NISSL_COUNT = 73
 
-SAVE_REGION = True
+SAVE_REGION = False
 
 # If false it will match using BruteForce
 MATCH_WITH_FLANN = True

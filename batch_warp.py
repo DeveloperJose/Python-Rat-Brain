@@ -25,42 +25,42 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     if iteration == total:
         print()
 
-im = feature.im_read('nissl_regions/Level-34-Region.jpg')
-point_range = range(5, 15)
-disp_range = range(5, 30)
+filename = 'nissl_regions/Level-34-Region.jpg'
+output_filename = 'results/Level-34-range2'
+points = 30
+disp_range = range(30, 50)
 nissl_range = range(1, config.NISSL_COUNT + 1)
 
 print("***** Beginning batch processing")
+im = feature.im_read(filename)
+csv_filename = output_filename + "-" + str(points) + "pts.csv"
 
-with open('level-34-better.csv', 'w') as csvfile:
+with open(csv_filename, 'w') as csvfile:
     fieldnames = ['warp_points', 'warp_disp', 'plate', 'matches', 'inliers']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=',', lineterminator='\n')
 
     writer.writeheader()
 
-    for points in point_range:
-        print ("***** Progress: ", (points / point_range[0] / len(point_range)) * 100, "%")
-        for disp in disp_range:
-                # Warp image
-                print("[-- Warping: ", disp, "]")
-                im_warp = feature.warp(im, points, None, None, disp, None)
-                print("[-- Warped. Doing Nissl comparisons now]")
-                # Matching
-                best_inliers = -1
-                best_match = None
-                best_level = -1
-                for nissl_level in nissl_range:
-                    match = feature.match(im_warp, nissl_level)
-                    #print("[", int(nissl_level / len(nissl_range) * 100), "%]", end='', flush=True)
-                    printProgressBar(nissl_level, len(nissl_range))
+    for disp in disp_range:
+        printProgressBar(int(disp / disp[0]), len(disp_range), prefix='Disp: ')
+        # Warp image
+        im_warp = feature.warp(im, points, None, None, disp, None)
+        print("[-- Warped. Doing Nissl comparisons now]")
+        # Matching
+        best_inliers = -1
+        best_match = None
+        best_level = -1
+        for nissl_level in nissl_range:
+            match = feature.match(im_warp, nissl_level)
+            printProgressBar(nissl_level, len(nissl_range), prefix='Nissl Matching: ')
 
-                    if match is None:
-                        continue
+            if match is None:
+                continue
 
-                    if match.inlier_count > best_inliers:
-                        best_inliers = match.inlier_count
-                        best_match = match
-                        best_level = nissl_level
-                print ("\n** [Completed] Inliers: ", best_inliers, "\n\n")
-                writer.writerow({'warp_points': points, 'warp_disp': disp, 'plate': best_level, 'matches': len(best_match.matches), 'inliers': best_inliers })
-                csvfile.flush()
+            if match.inlier_count > best_inliers:
+                best_inliers = match.inlier_count
+                best_match = match
+                best_level = nissl_level
+        print ("** [Completed] Inliers: ", best_inliers, "\n\n")
+        writer.writerow({'warp_points': points, 'warp_disp': disp, 'plate': best_level, 'matches': len(best_match.matches), 'inliers': best_inliers })
+        csvfile.flush()
