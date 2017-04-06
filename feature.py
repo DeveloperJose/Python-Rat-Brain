@@ -36,7 +36,7 @@ class Match(object):
 
         return arr
 
-def warp(im, points, disp_min, disp_max):
+def warp(im, points, disp_min, disp_max, disp_len = None, disp_angle = None):
     h, w = im.shape[:2]
 
     # Include the corners
@@ -47,8 +47,15 @@ def warp(im, points, disp_min, disp_max):
         rand_x = random.uniform(0, w)
         rand_y = random.uniform(0, h)
         p = np.array([rand_x, rand_y])
-        rand_len = random.uniform(disp_min, disp_max)
-        rand_angle = np.deg2rad(random.uniform(0, 360))
+        if disp_len is None:
+            rand_len = random.uniform(disp_min, disp_max)
+        else:
+            rand_len = disp_len
+
+        if disp_angle is None:
+            rand_angle = np.deg2rad(random.uniform(0, 360))
+        else:
+            rand_angle = disp_angle
 
         p2_x = rand_x + np.cos(rand_angle) * rand_len
         p2_y = rand_y + np.sin(rand_angle) * rand_len

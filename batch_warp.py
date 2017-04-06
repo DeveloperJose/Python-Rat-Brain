@@ -27,25 +27,23 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
 
 im = feature.im_read('nissl_regions/Level-34-Region.jpg')
 point_range = range(5, 15)
-min_disp_range = range(0, 8)
-max_disp_range = range(0, 8)
+disp_range = range(5, 30)
 nissl_range = range(1, config.NISSL_COUNT + 1)
 
 print("***** Beginning batch processing")
 
-with open('level-34-3.csv', 'w') as csvfile:
-    fieldnames = ['warp_points', 'warp_min_disp', 'warp_max_disp', 'plate', 'matches', 'inliers']
-    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+with open('level-34-better.csv', 'w') as csvfile:
+    fieldnames = ['warp_points', 'warp_disp', 'plate', 'matches', 'inliers']
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames, delimiter=',', lineterminator='\n')
 
     writer.writeheader()
 
     for points in point_range:
         print ("***** Progress: ", (points / point_range[0] / len(point_range)) * 100, "%")
-        for min_disp in min_disp_range:
-            for max_disp in max_disp_range:
+        for disp in disp_range:
                 # Warp image
-                print("[-- Warping: ", min_disp, max_disp, "]")
-                im_warp = feature.warp(im, points, min_disp, max_disp)
+                print("[-- Warping: ", disp, "]")
+                im_warp = feature.warp(im, points, None, None, disp, None)
                 print("[-- Warped. Doing Nissl comparisons now]")
                 # Matching
                 best_inliers = -1
@@ -64,5 +62,5 @@ with open('level-34-3.csv', 'w') as csvfile:
                         best_match = match
                         best_level = nissl_level
                 print ("\n** [Completed] Inliers: ", best_inliers, "\n\n")
-                writer.writerow({'warp_points': points, 'warp_min_disp': min_disp, 'warp_max_disp': max_disp, 'plate': best_level, 'matches': len(best_match.matches), 'inliers': best_inliers })
+                writer.writerow({'warp_points': points, 'warp_disp': disp, 'plate': best_level, 'matches': len(best_match.matches), 'inliers': best_inliers })
                 csvfile.flush()
