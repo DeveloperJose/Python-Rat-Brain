@@ -251,6 +251,9 @@ class Prototype(QWidget):
         self.slider_warp_points.setEnabled(True)
         self.slider_warp_disp.setEnabled(True)
 
+        if config.SAVE_REGION:
+            feature.im_write('region.jpg', im_region)
+
     ##################################################################################
     #   Canvas Events
     ##################################################################################

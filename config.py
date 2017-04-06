@@ -9,6 +9,8 @@ NISSL_DIR = "nissl"
 NISSL_EXT = ".jpg"
 NISSL_COUNT = 73
 
+SAVE_REGION = True
+
 # If false it will match using BruteForce
 MATCH_WITH_FLANN = True
 
@@ -18,7 +20,7 @@ MIN_MATCH_COUNT = 15
 # Neighbor distance ratio for the ratio test as per Lowe's SIFT paper
 DISTANCE_RATIO = 0.8
 
-# What percentage of matched keypoints should we draw?
+# What percentage of matched keypoints should we draw? [0.0 - 1.0]
 MATCH_KEYPOINTS_PERCENTAGE = 1
 
 MATCH_RECT_COLOR = (0, 255, 255)
