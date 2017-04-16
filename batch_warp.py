@@ -25,7 +25,7 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     if iteration == total:
         print()
 
-filename = 'nissl_regions/Level-34-Region.jpg'
+filename = 'atlas_swanson_regions/Level-34-Region.jpg'
 output_filename = 'results/Level-34-range2'
 points = 30
 disp_range = range(30, 50)

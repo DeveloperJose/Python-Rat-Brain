@@ -10,7 +10,7 @@ from skimage.color import rgb2grey
 
 SIFT = cv2.xfeatures2d.SIFT_create()
 FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PARAMS)
-BF = cv2.BFMatcher(normType=cv2.NORM_L2)
+BF = cv2.BFMatcher(normType=cv2.NORM_HAMMING)
 
 class Match(object):
     def __init__(self, nissl_level, matches, H, mask, result, result2):
@@ -78,8 +78,6 @@ def warp(im, points, disp_min, disp_max, disp_len = None, disp_angle = None):
     tform.estimate(src_pts, dst_pts)
 
     return warp(im, tform)
-    #H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=5.0)
-    #return cv2.warpPerspective(im, H, (w, h))
 
 def im_read(filename, flags=cv2.IMREAD_COLOR):
     im = cv2.imread(filename, flags)
@@ -99,7 +97,7 @@ def im_write(filename, im):
     cv2.imwrite(filename, im)
 
 def nissl_load(nissl_level, color_flags=cv2.IMREAD_COLOR):
-    filename = "Level-" + str(nissl_level).zfill(2) + config.NISSL_EXT
+    filename = config.NISSL_PREFIX + str(nissl_level).zfill(config.NISSL_DIGITS) + config.NISSL_EXT
     path = os.path.join(config.NISSL_DIR, filename)
 
     if not os.path.exists(path):
@@ -109,7 +107,7 @@ def nissl_load(nissl_level, color_flags=cv2.IMREAD_COLOR):
     return im_read(path, color_flags)
 
 def nissl_load_sift(nissl_level):
-    filename = "Level-" + str(nissl_level).zfill(2) + ".sift"
+    filename = config.NISSL_PREFIX + str(nissl_level).zfill(config.NISSL_DIGITS) + ".sift"
     path = os.path.join(config.NISSL_DIR, filename)
 
     if not os.path.exists(path):
@@ -121,7 +119,6 @@ def nissl_load_sift(nissl_level):
         kp, des = extract_sift(nissl)
         temp = pickle_sift(kp, des)
         pickle.dump(temp, open(path, "wb"))
-
         return kp, des
 
     else:
@@ -129,17 +126,7 @@ def nissl_load_sift(nissl_level):
         kp, des = unpickle_sift(raw_sift)
         return kp, des
 
-def match(im_region, nissl_level):
-    # im_region is colored
-    if len(im_region.shape) == 3:
-        if im_region.dtype != np.uint8:
-            im_region = (im_region * 255).astype(np.uint8)
-
-        im_region_gray = cv2.cvtColor(im_region, cv2.COLOR_RGB2GRAY)
-
-    kp1, des1 = extract_sift(im_region_gray)
-    kp2, des2 = nissl_load_sift(nissl_level)
-
+def match(im1, kp1, des1, im2, kp2, des2):
     if config.MATCH_WITH_FLANN:
         matches = FLANN.knnMatch(des1, des2, k=2)
     else:
@@ -148,64 +135,78 @@ def match(im_region, nissl_level):
     # Apply Ratio Test
     good_matches = [m[0] for m in matches if len(m) == 2 and m[0].distance < m[1].distance * config.DISTANCE_RATIO]
 
-    if len(good_matches) > config.MIN_MATCH_COUNT:
-        im_nissl = nissl_load(nissl_level)
-
-        src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches])
-        dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches])
-
-        # Obtain the homography matrix
-        H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=5.0)
-        ravel = mask.ravel()
-        matchesMask = mask.ravel().tolist()
-
-        count = int(config.DISTANCE_RATIO * len(ravel == 1))
-        for i in range(len(matchesMask)):
-            if ravel[i] == 1:
-                matchesMask[i] = 0
-                count -= 1
-
-            if count <= 0:
-                break
-
-
-        # Apply the perspective transformation to the source image corners
-        h, w = im_region_gray.shape
-        corners = np.float32([ [0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0] ]).reshape(-1, 1, 2)
-
-        try:
-            transformedCorners = cv2.perspectiveTransform(corners, H)
-        except:
-            print("transformed corners failed")
-            return None
-
-        # Draw a polygon on the second image joining the transformed corners
-        im_nissl = cv2.polylines(im_nissl, [np.int32(transformedCorners)], True, config.MATCH_RECT_COLOR, 2, cv2.LINE_AA)
-
-        drawParameters = dict(matchColor=config.MATCH_LINE_COLOR, singlePointColor=None, matchesMask=matchesMask, flags=2)
-        try:
-            result = cv2.drawMatches(im_region, kp1, im_nissl, kp2, good_matches, None, **drawParameters)
-
-            im_out = cv2.warpPerspective(im_region, H, (im_nissl.shape[1],im_nissl.shape[0]))
-            good_mask = im_out != 0
-            result2 = im_nissl
-            result2[good_mask] = im_out[good_mask]
-        except:
-            print("draw matches failed")
-            result = im_nissl
-            result2 = im_nissl
-
-        return Match(nissl_level, good_matches, H, mask, result, result2)
-
-    else:
+    if len(good_matches) < config.MIN_MATCH_COUNT:
         return None
 
+    # For homography calculation
+    src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches])
+    dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches])
+
+    # Obtain the homography matrix
+    H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=5.0)
+    matchesMask = mask.ravel().tolist()
+
+    # Apply the perspective transformation to the source image corners
+    h, w = im1.shape[:2]
+    corners = np.float32([ [0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0] ]).reshape(-1, 1, 2)
+
+    try:
+        transformedCorners = cv2.perspectiveTransform(corners, H)
+        # Draw a polygon on the second image joining the transformed corners
+        im2 = cv2.polylines(im2, [np.int32(transformedCorners)], True, config.MATCH_RECT_COLOR, 2, cv2.LINE_AA)
+    except:
+        print("transformed corners failed")
+        return None
+
+    # SIFT line matching
+    drawParameters = dict(matchColor=config.MATCH_LINE_COLOR, singlePointColor=None, matchesMask=matchesMask, flags=2)
+    result = cv2.drawMatches(im1, kp1, im2, kp2, good_matches, None, **drawParameters)
+
+    # Warp the first image onto the second image
+    im_out = cv2.warpPerspective(im1, H, (im2.shape[1],im2.shape[0]))
+    good_mask = (im_out != 0)
+    result2 = im2
+    print("r2", result2.shape, "im_out", im_out.shape, "gm", good_mask.shape)
+
+    if len(good_mask.shape) == 3: # Color
+        result2[good_mask] = im_out[good_mask]
+    else:
+        result2[good_mask, 0] = im_out[good_mask]
+
+    return Match(None, good_matches, H, mask, result, result2)
+
+def match_region_nissl(im_region, nissl_level):
+    kp1, des1 = extract_sift(im_region)
+
+    kp2, des2 = nissl_load_sift(nissl_level)
+    im_nissl = nissl_load(nissl_level)
+
+    m = match(im_region, kp1, des1, im_nissl, kp2, des2)
+    if m is None:
+        return None
+    else:
+        m.nissl_level = nissl_level
+        return m
+
 def extract_sift(im):
+    if im.dtype != np.uint8:
+            im = (im * 255).astype(np.uint8)
+
+    if len(im.shape) == 3:
+        im = cv2.cvtColor(im, cv2.COLOR_RGB2GRAY)
+
     kp, des = SIFT.detectAndCompute(im, None)
+    #star = cv2.xfeatures2d.SIFT_create()
+    #brief = cv2.xfeatures2d.BriefDescriptorExtractor_create()
+    #kp = star.detect(im, None)
+    #kp, des = brief.compute(im, kp)
 
     # Clustering test
-    #km = sklearn.cluster.KMeans(n_clusters=config.N_CLUSTERS)
+    #from sklearn.cluster import KMeans
+    #print("Clustering...")
+    #km = KMeans(n_clusters=50)
     #km.fit(des)
+    #print("Done")
     #des = km.cluster_centers_
 
     return kp, des
@@ -215,6 +216,8 @@ def pickle_sift(keypoints, descriptors):
     i = 0
     temp_array = []
     for point in keypoints:
+        if i >= len(descriptors):
+            break
         temp = (point.pt, point.size, point.angle, point.response, point.octave,
         point.class_id, descriptors[i])
         i += 1

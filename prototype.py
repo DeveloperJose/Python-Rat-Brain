@@ -26,7 +26,7 @@ class Prototype(QWidget):
         # ================================================================================
         #   Variable Setup
         # ================================================================================
-        self.nissl_filename = os.path.join(config.NISSL_DIR, "Level-34.jpg")
+        self.nissl_filename = os.path.join(config.NISSL_DIR, config.NISSL_DEFAULT_FILE)
 
         # ================================================================================
         #   UI Layout Preparation

@@ -5,17 +5,27 @@ FLANN_INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE,
 
 FLANN_SEARCH_PARAMS = dict(checks=200)
 
-NISSL_DIR = "nissl"
-NISSL_EXT = ".jpg"
+#NISSL_DEFAULT_FILE = 'RBSC7-060.jpg'
+#NISSL_DIR = 'atlas_paxinos_watson_25'
+#NISSL_PREFIX = 'RBSC7-'
+#NISSL_DIGITS = 3
+#NISSL_COUNT = 161
+
+NISSL_DEFAULT_FILE = 'Level-34.jpg'
+NISSL_DIR = "atlas_swanson"
+NISSL_PREFIX = "Level-"
+NISSL_DIGITS = 2
 NISSL_COUNT = 73
 
-SAVE_REGION = False
+NISSL_EXT = ".jpg"
+
+SAVE_REGION = True
 
 # If false it will match using BruteForce
 MATCH_WITH_FLANN = True
 
 # Number of minimum good matches needed to compare descriptors
-MIN_MATCH_COUNT = 15
+MIN_MATCH_COUNT = 1
 
 # Neighbor distance ratio for the ratio test as per Lowe's SIFT paper
 DISTANCE_RATIO = 0.8
