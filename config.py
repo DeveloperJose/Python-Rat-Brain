@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-FLANN_INDEX_KDTREE = 0
+FLANN_INDEX_KDTREE = 1
 FLANN_INDEX_PARAMS = dict(algorithm=FLANN_INDEX_KDTREE,
                           trees=5)
 
@@ -28,10 +28,7 @@ MATCH_WITH_FLANN = True
 MIN_MATCH_COUNT = 1
 
 # Neighbor distance ratio for the ratio test as per Lowe's SIFT paper
-DISTANCE_RATIO = 0.8
-
-# What percentage of matched keypoints should we draw? [0.0 - 1.0]
-MATCH_KEYPOINTS_PERCENTAGE = 1
+DISTANCE_RATIO = 0.88
 
 MATCH_RECT_COLOR = (0, 255, 255)
 MATCH_LINE_COLOR = (0, 255, 0)

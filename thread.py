@@ -30,7 +30,7 @@ class MatchingThread(QThread):
         self.startProgress.emit(config.NISSL_COUNT)
 
         for nissl_level in range(1, config.NISSL_COUNT + 1):
-            match = feature.match(self.im, nissl_level)
+            match = feature.match_region_nissl(self.im, nissl_level)
             self.updateProgress.emit(nissl_level)
 
             if match is None:

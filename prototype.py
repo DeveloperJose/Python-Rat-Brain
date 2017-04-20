@@ -231,6 +231,14 @@ class Prototype(QWidget):
     def set_im_region(self, im_region):
         w, h, c = im_region.shape
 
+        import scipy.misc as misc
+        im_region = misc.imresize(im_region, 25)
+
+        n = 9
+        kernel = np.ones((n,n),np.float32)/(n**2)
+        import cv2
+        im_region = cv2.filter2D(im_region,-1,kernel)
+
         # Scale
         #import scipy.misc
         #size = (300, 300)

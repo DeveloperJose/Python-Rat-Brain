@@ -1,1 +1,0 @@
-REM magick mogrify -resize 25% -quality 100 *.jpg
