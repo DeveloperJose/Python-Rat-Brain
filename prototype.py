@@ -44,12 +44,6 @@ class Prototype(QWidget):
         # ================================================================================
         self.refresh_image() # Set default image
 
-        self.thread_match = MatchingThread(self)
-        self.thread_match.startProgress.connect(self.on_thread_match_start)
-        self.thread_match.updateProgress.connect(self.on_thread_match_update)
-        self.thread_match.endProgress.connect(self.on_thread_match_end)
-
-
     ##################################################################################
     #   UI Layout/Widget Routines
     ##################################################################################
@@ -133,63 +127,65 @@ class Prototype(QWidget):
         self.slider_ratio_test.setEnabled(False)
         layout.addWidget(self.slider_ratio_test)
 
-        # *** Label (Angle)
-        self.label_angle = QLabel("Angle: 0")
-        layout.addWidget(self.label_angle)
+        if (config.UI_ANGLE):
+            # *** Label (Angle)
+            self.label_angle = QLabel("Angle: 0")
+            layout.addWidget(self.label_angle)
 
-        # *** Slider (Angle)
-        self.slider_angle = QSlider(Qt.Horizontal)
-        self.slider_angle.valueChanged.connect(self.on_slider_change_angle)
-        self.slider_angle.setMinimum(0)
-        self.slider_angle.setMaximum(360)
-        self.slider_angle.setTickPosition(QSlider.NoTicks)
-        self.slider_angle.setTickInterval(1)
-        self.slider_angle.setEnabled(False)
-        layout.addWidget(self.slider_angle)
+            # *** Slider (Angle)
+            self.slider_angle = QSlider(Qt.Horizontal)
+            self.slider_angle.valueChanged.connect(self.on_slider_change_angle)
+            self.slider_angle.setMinimum(0)
+            self.slider_angle.setMaximum(360)
+            self.slider_angle.setTickPosition(QSlider.NoTicks)
+            self.slider_angle.setTickInterval(1)
+            self.slider_angle.setEnabled(False)
+            layout.addWidget(self.slider_angle)
 
-        # *** Label (Warp Points)
-        self.label_warp_points = QLabel("")
-        layout.addWidget(self.label_warp_points)
+        if (config.UI_WARP):
+            # *** Label (Warp Points)
+            self.label_warp_points = QLabel("")
+            layout.addWidget(self.label_warp_points)
 
-        # *** Slider (Warp Points)
-        self.slider_warp_points = QSlider(Qt.Horizontal)
-        self.slider_warp_points.valueChanged.connect(self.on_slider_change_warp_points)
-        self.slider_warp_points.setMinimum(3)
-        self.slider_warp_points.setMaximum(50)
-        self.slider_warp_points.setTickPosition(QSlider.NoTicks)
-        self.slider_warp_points.setTickInterval(1)
-        self.slider_warp_points.setValue(5)
-        self.slider_warp_points.setEnabled(False)
-        layout.addWidget(self.slider_warp_points)
+            # *** Slider (Warp Points)
+            self.slider_warp_points = QSlider(Qt.Horizontal)
+            self.slider_warp_points.valueChanged.connect(self.on_slider_change_warp_points)
+            self.slider_warp_points.setMinimum(3)
+            self.slider_warp_points.setMaximum(50)
+            self.slider_warp_points.setTickPosition(QSlider.NoTicks)
+            self.slider_warp_points.setTickInterval(1)
+            self.slider_warp_points.setValue(5)
+            self.slider_warp_points.setEnabled(False)
+            layout.addWidget(self.slider_warp_points)
 
-        # *** Label (Warp Disp Min)
-        self.label_warp_disp_min = QLabel("Min Displacement: ")
-        layout.addWidget(self.label_warp_disp_min)
+            # *** Label (Warp Disp Min)
+            self.label_warp_disp_min = QLabel("Min Displacement: ")
+            layout.addWidget(self.label_warp_disp_min)
 
-        # *** Label (Warp Disp Max)
-        self.label_warp_disp_max = QLabel("Max Displacement: ")
-        layout.addWidget(self.label_warp_disp_max)
+            # *** Label (Warp Disp Max)
+            self.label_warp_disp_max = QLabel("Max Displacement: ")
+            layout.addWidget(self.label_warp_disp_max)
 
-        from qrangeslider import QRangeSlider
-        self.slider_warp_disp = QRangeSlider()
-        self.slider_warp_disp.setMin(0)
-        self.slider_warp_disp.setMax(50)
-        self.slider_warp_disp.setRange(1, 5)
-        self.slider_warp_disp.setEnabled(False)
-        #self.slider_warp_disp.startValueChanged.connect(self.on_slider_warp_disp_start)
-        #self.slider_warp_disp.setBackgroundStyle('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #222, stop:1 #333);')
-        #self.slider_warp_disp.handle.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #282, stop:1 #393);')
-        layout.addWidget(self.slider_warp_disp)
+            from qrangeslider import QRangeSlider
+            self.slider_warp_disp = QRangeSlider()
+            self.slider_warp_disp.setMin(0)
+            self.slider_warp_disp.setMax(50)
+            self.slider_warp_disp.setRange(1, 5)
+            self.slider_warp_disp.setEnabled(False)
+            #self.slider_warp_disp.startValueChanged.connect(self.on_slider_warp_disp_start)
+            #self.slider_warp_disp.setBackgroundStyle('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #222, stop:1 #333);')
+            #self.slider_warp_disp.handle.setStyleSheet('background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #282, stop:1 #393);')
+            layout.addWidget(self.slider_warp_disp)
 
-        self.btn_warp = QPushButton("Warp")
-        self.btn_warp.clicked.connect(self.on_click_btn_warp)
-        self.btn_warp.setEnabled(False)
-        layout.addWidget(self.btn_warp)
+            self.btn_warp = QPushButton("Warp")
+            self.btn_warp.clicked.connect(self.on_click_btn_warp)
+            self.btn_warp.setEnabled(False)
+            layout.addWidget(self.btn_warp)
 
-        self.btn_reset = QPushButton("Reset")
-        self.btn_reset.clicked.connect(self.on_click_btn_reset)
-        self.btn_reset.setEnabled(False)
-        layout.addWidget(self.btn_reset)
+            self.btn_reset = QPushButton("Reset")
+            self.btn_reset.clicked.connect(self.on_click_btn_reset)
+            self.btn_reset.setEnabled(False)
+            layout.addWidget(self.btn_reset)
 
         canvas_box.setLayout(layout)
         return canvas_box
@@ -229,38 +225,35 @@ class Prototype(QWidget):
         self.canvas_input.imshow(im)
 
     def set_im_region(self, im_region):
+        print("set_im_region");
         w, h, c = im_region.shape
 
-        import scipy.misc as misc
-        im_region = misc.imresize(im_region, 25)
+        #if (config.ATLAS == "SWANSON"):
+        #import scipy.misc as misc
+        #im_region = misc.imresize(im_region, (w/200))
 
-        n = 9
-        kernel = np.ones((n,n),np.float32)/(n**2)
-        import cv2
-        im_region = cv2.filter2D(im_region,-1,kernel)
+        if config.SAVE_REGION:
+            feature.im_write('region.jpg', im_region)
 
-        # Scale
-        #import scipy.misc
-        #size = (300, 300)
-        #print ("Size before scale", im_region.shape)
-        #im_region = scipy.misc.imresize(im_region, size)
-
-        # Saving
-        #feature.im_write("part.jpg", im_region)
+        #n = 9
+        #kernel = np.ones((n,n),np.float32)/(n**2)
+        #import cv2
+        #im_region = cv2.filter2D(im_region,-1,kernel)
 
         self.region = im_region
         self.canvas_region.imshow(self.region)
         self.canvas_input.clear_corners()
         self.btn_find_match.setEnabled(True)
-        self.btn_warp.setEnabled(True)
-        self.btn_reset.setEnabled(True)
-        self.slider_angle.setEnabled(True)
         self.slider_ratio_test.setEnabled(True)
-        self.slider_warp_points.setEnabled(True)
-        self.slider_warp_disp.setEnabled(True)
 
-        if config.SAVE_REGION:
-            feature.im_write('region.jpg', im_region)
+        if config.UI_WARP:
+            self.btn_warp.setEnabled(True)
+            self.btn_reset.setEnabled(True)
+            self.slider_warp_points.setEnabled(True)
+            self.slider_warp_disp.setEnabled(True)
+
+        if config.UI_ANGLE:
+            self.slider_angle.setEnabled(True)
 
     ##################################################################################
     #   Canvas Events
@@ -287,8 +280,14 @@ class Prototype(QWidget):
     #   Button Events
     ##################################################################################
     def on_click_btn_find_match(self):
+        print("Pressed find match...")
+        self.thread_match = MatchingThread(self)
+        self.thread_match.startProgress.connect(self.on_thread_match_start)
+        self.thread_match.updateProgress.connect(self.on_thread_match_update)
+        self.thread_match.endProgress.connect(self.on_thread_match_end)
         self.thread_match.set_im(self.canvas_region.im)
         self.thread_match.start()
+        print("Started thread...", self.canvas_region.im.shape)
 
     def on_click_btn_add_image(self):
         self.set_im_region(self.canvas_input.im.copy())
@@ -315,6 +314,7 @@ class Prototype(QWidget):
     #   Thread Events
     ##################################################################################
     def on_thread_match_start(self, total):
+        print("on_thread_match_start");
         self.progressbar_match.setMaximum(total)
 
         self.canvas_input.is_interactive = False
@@ -323,7 +323,11 @@ class Prototype(QWidget):
         self.btn_find_match.setEnabled(False)
 
         self.slider_ratio_test.setEnabled(False)
-        self.slider_angle.setEnabled(False)
+
+        if config.UI_ANGLE:
+            self.slider_angle.setEnabled(False)
+
+        print("on_thread_match_start_end");
 
     def on_thread_match_update(self, index):
         self.progressbar_match.setValue(index)
@@ -334,9 +338,10 @@ class Prototype(QWidget):
 
         self.btn_open.setEnabled(True)
         self.btn_find_match.setEnabled(True)
-
         self.slider_ratio_test.setEnabled(True)
-        self.slider_angle.setEnabled(True)
+
+        if config.UI_ANGLE:
+            self.slider_angle.setEnabled(True)
 
         if len(matches) <= 0:
             self.label_match_status.setText("Didn't find a good match.")

@@ -143,7 +143,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches])
 
     # Obtain the homography matrix
-    H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=5.0)
+    H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=50, maxIters=2000, confidence=0.99)
     matchesMask = mask.ravel().tolist()
 
     # Apply the perspective transformation to the source image corners
@@ -166,7 +166,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
     im_out = cv2.warpPerspective(im1, H, (im2.shape[1],im2.shape[0]))
     good_mask = (im_out != 0)
     result2 = im2
-    print("r2", result2.shape, "im_out", im_out.shape, "gm", good_mask.shape)
+    #print("r2", result2.shape, "im_out", im_out.shape, "gm", good_mask.shape)
 
     if len(good_mask.shape) == 3: # Color
         result2[good_mask] = im_out[good_mask]
@@ -188,6 +188,17 @@ def match_region_nissl(im_region, nissl_level):
         m.nissl_level = nissl_level
         return m
 
+def match_sift_nissl(im_region, kp1, des1, nissl_level):
+    kp2, des2 = nissl_load_sift(nissl_level)
+    im_nissl = nissl_load(nissl_level)
+
+    m = match(im_region, kp1, des1, im_nissl, kp2, des2)
+    if m is None:
+        return None
+    else:
+        m.nissl_level = nissl_level
+        return m
+
 def extract_sift(im):
     if im.dtype != np.uint8:
             im = (im * 255).astype(np.uint8)
@@ -198,6 +209,8 @@ def extract_sift(im):
     #kp, des = SIFT.detectAndCompute(im, None)
     pool = ThreadPool(processes = cv2.getNumberOfCPUs())
     kp, des = affine_detect(SIFT, im, pool=pool)
+    pool.close()
+    pool.join()
 
     return kp, des
 

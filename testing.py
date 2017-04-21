@@ -2,11 +2,13 @@
 import cv2
 import numpy as np
 import pylab as plt
-import feature
 
 import scipy.ndimage.filters as filters
 import scipy.signal as signal
 import scipy.misc as misc
+
+import feature
+import timing
 
 sift = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.08, edgeThreshold=30, sigma=2)
 affine = True
@@ -23,7 +25,7 @@ def draw_kp(im):
     plt.imshow(im_kp)
 
 def match(im):
-    atlas = feature.im_read('region-34.jpg')
+    atlas = feature.im_read('scripts_testing/plate-34.jpg')
 
     if affine:
         kp, des = feature.extract_sift(im)
@@ -42,13 +44,13 @@ def match(im):
 
     return match.H
 
-
-filename = 'region-70-HQ.jpg'
+filename = 'scripts_testing/region-70-HQ.jpg'
 im_region = feature.im_read(filename)
 im_region_gray = feature.im_read(filename, flags=cv2.IMREAD_GRAYSCALE)
 
 # *************** Resizing
-im_region = misc.imresize(im_region, (170, 310))
+#im_region = misc.imresize(im_region, (170, 310))
+im_region = misc.imresize(im_region, 10)
 
 # *************** Convolution
 #n = 6
@@ -56,5 +58,8 @@ im_region = misc.imresize(im_region, (170, 310))
 #dst = cv2.filter2D(im_region,-1,kernel)
 
 affine = True
-draw_kp(feature.im_read('region-34.jpg'))
+draw_kp(feature.im_read('scripts_testing/region-34.jpg'))
+
+timing.stopwatch()
 H = match(im_region)
+timing.stopwatch("Matching")
