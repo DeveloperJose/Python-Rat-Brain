@@ -44,6 +44,11 @@ class Prototype(QWidget):
         # ================================================================================
         self.refresh_image() # Set default image
 
+        self.thread_match = MatchingThread(self)
+        self.thread_match.startProgress.connect(self.on_thread_match_start)
+        self.thread_match.updateProgress.connect(self.on_thread_match_update)
+        self.thread_match.endProgress.connect(self.on_thread_match_end)
+
     ##################################################################################
     #   UI Layout/Widget Routines
     ##################################################################################
@@ -225,12 +230,14 @@ class Prototype(QWidget):
         self.canvas_input.imshow(im)
 
     def set_im_region(self, im_region):
-        print("set_im_region");
+        print("set_im_region", im_region.shape);
         w, h, c = im_region.shape
 
         #if (config.ATLAS == "SWANSON"):
-        #import scipy.misc as misc
-        #im_region = misc.imresize(im_region, (w/200))
+        import scipy.misc as misc
+        reduction_percent = int(config.RESIZE_WIDTH/w * 100)
+        im_region = misc.imresize(im_region, reduction_percent)
+        print("Resized to",im_region.shape)
 
         if config.SAVE_REGION:
             feature.im_write('region.jpg', im_region)
@@ -281,11 +288,8 @@ class Prototype(QWidget):
     ##################################################################################
     def on_click_btn_find_match(self):
         print("Pressed find match...")
-        self.thread_match = MatchingThread(self)
-        self.thread_match.startProgress.connect(self.on_thread_match_start)
-        self.thread_match.updateProgress.connect(self.on_thread_match_update)
-        self.thread_match.endProgress.connect(self.on_thread_match_end)
         self.thread_match.set_im(self.canvas_region.im)
+        #self.thread_pool.start(self.thread_match)
         self.thread_match.start()
         print("Started thread...", self.canvas_region.im.shape)
 

@@ -13,7 +13,7 @@ FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PAR
 BF = cv2.BFMatcher(normType=cv2.NORM_HAMMING)
 
 class Match(object):
-    def __init__(self, nissl_level, matches, H, mask, result, result2):
+    def __init__(self, nissl_level, matches, H, mask, result, result2, area_ratio):
         self.nissl_level = nissl_level
         self.matches = matches
         self.largest_match = max(matches, key=lambda x:x.distance)
@@ -22,16 +22,18 @@ class Match(object):
         self.inlier_count = mask.sum()
         self.result = result
         self.result2 = result2
+        self.area_ratio = area_ratio
 
     def comparison_key(self):
         return self.inlier_count
 
     def to_string_array(self):
+        svd = np.linalg.svd(self.H, compute_uv=False)
         arr = np.array([
             "Plate #" + str(self.nissl_level),
             str(len(self.matches)),
             str(self.inlier_count),
-            str(self.largest_match.distance)
+            str(svd[-1] / svd[0])
             ])
 
         return arr
@@ -146,15 +148,34 @@ def match(im1, kp1, des1, im2, kp2, des2):
     H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=50, maxIters=2000, confidence=0.99)
     matchesMask = mask.ravel().tolist()
 
+    if H is None or len(H.shape) != 2:
+        print("couldn't get homography")
+        return None
+
+    det = np.linalg.det(H)
+    if(abs(det) > 10):
+        print("det high", det)
+        return None
+
     # Apply the perspective transformation to the source image corners
     h, w = im1.shape[:2]
     corners = np.float32([ [0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0] ]).reshape(-1, 1, 2)
 
     try:
         transformedCorners = cv2.perspectiveTransform(corners, H)
+
+        original_area = cv2.contourArea(corners)
+        transformed_area = cv2.contourArea(transformedCorners)
+        area_ratio = transformed_area / original_area
+
+        #if (area_ratio > 2 or area_ratio < 0.01):
+            #print("horrible match from areas", "ratio: ", area_ratio)
+            #return None
+
         # Draw a polygon on the second image joining the transformed corners
         im2 = cv2.polylines(im2, [np.int32(transformedCorners)], True, config.MATCH_RECT_COLOR, 2, cv2.LINE_AA)
     except:
+        area_ratio = 0
         print("transformed corners failed")
         return None
 
@@ -173,7 +194,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
     else:
         result2[good_mask, 0] = im_out[good_mask]
 
-    return Match(None, good_matches, H, mask, result, result2)
+    return Match(None, good_matches, H, mask, result, result2, area_ratio)
 
 def match_region_nissl(im_region, nissl_level):
     kp1, des1 = extract_sift(im_region)
@@ -207,6 +228,7 @@ def extract_sift(im):
         im = cv2.cvtColor(im, cv2.COLOR_RGB2GRAY)
 
     #kp, des = SIFT.detectAndCompute(im, None)
+    print("Extracting SIFT")
     pool = ThreadPool(processes = cv2.getNumberOfCPUs())
     kp, des = affine_detect(SIFT, im, pool=pool)
     pool.close()

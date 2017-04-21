@@ -33,6 +33,10 @@ class MatchingThread(QThread):
         if match is None:
             return
 
+        inlier_percentage = match.inlier_count / len(match.matches) * 100
+        if (inlier_percentage >= 90):
+            print("level", nissl_level, "has a percentage of", inlier_percentage)
+
         if self.results is None:
             self.results = np.array([match])
         else:

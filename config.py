@@ -20,6 +20,9 @@ else:
     NISSL_DIGITS = 3
     NISSL_COUNT = 161
 
+# We will attempt to reduce the images to this size but maintain aspect ratio
+RESIZE_WIDTH = 200
+
 NISSL_EXT = ".jpg"
 
 UI_WARP = False
