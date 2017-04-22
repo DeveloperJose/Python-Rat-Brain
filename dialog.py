@@ -9,7 +9,7 @@ class ResultsDialog(QDialog):
 
         self.filename = filename
         self.matches = matches
-        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier/Matches', '', '']
+        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'I/M', 'SVD', 'Det H']
 
         layout = QVBoxLayout()
 
@@ -17,7 +17,7 @@ class ResultsDialog(QDialog):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setMinimumWidth(750)
+        self.table.setMinimumWidth(1000)
         self.table.setMinimumHeight(450)
         self.table.setRowCount(len(matches))
         self.table.setColumnCount(len(self.labels))
@@ -27,10 +27,9 @@ class ResultsDialog(QDialog):
         row = 0
         for match in self.matches:
             string_repr = match.to_string_array()
-            self.table.setItem(row, 0, QTableWidgetItem(string_repr[0]))
-            self.table.setItem(row, 1, QTableWidgetItem(string_repr[1]))
-            self.table.setItem(row, 2, QTableWidgetItem(string_repr[2]))
-            self.table.setItem(row, 3, QTableWidgetItem(string_repr[3]))
+            for i in range(len(string_repr)):
+                self.table.setItem(row, i, QTableWidgetItem(string_repr[i]))
+
             row += 1
 
         self.table.doubleClicked.connect(self.on_double_click_table)

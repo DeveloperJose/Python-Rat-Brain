@@ -11,7 +11,7 @@ from multiprocessing.pool import ThreadPool
 import logbook
 logger = logbook.Logger(__name__)
 
-SIFT = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.15, edgeThreshold=10, sigma=2)
+SIFT = cv2.xfeatures2d.SIFT_create(contrastThreshold=config.SIFT_CONTRAST_THRESHOLD, edgeThreshold=config.SIFT_EDGE_THRESHOLD, sigma=config.SIFT_SIGMA)
 FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PARAMS)
 BF = cv2.BFMatcher(normType=cv2.NORM_HAMMING)
 
@@ -19,26 +19,33 @@ class Match(object):
     def __init__(self, nissl_level, matches, H, mask, result, result2):
         self.nissl_level = nissl_level
         self.matches = matches
-        self.largest_match = max(matches, key=lambda x:x.distance)
         self.H = H
         self.mask = mask
-        self.inlier_count = mask.sum()
         self.result = result
         self.result2 = result2
 
+        self.matches_count = len(matches)
+        self.inlier_count = mask.sum()
+        self.inlier_ratio = self.inlier_count / self.matches_count
+
+        self.homography_det = abs(np.linalg.det(H))
+
+        self.svd = np.linalg.svd(self.H, compute_uv=False)
+        self.svd_ratio = self.svd[0] / self.svd[-1]
+
     def comparison_key(self):
-        return self.inlier_count
+        return (-self.svd_ratio, self.inlier_ratio, -self.homography_det)
 
+    # ['Plate', 'Match Count', 'Inlier Count', 'I/M', 'SVD', 'Det H']
     def to_string_array(self):
-        svd = np.linalg.svd(self.H, compute_uv=False)
-        arr = np.array([
+        return np.array([
             "Plate #" + str(self.nissl_level),
-            str(len(self.matches)),
+            str(self.matches_count),
             str(self.inlier_count),
-            str(svd[-1] / svd[0])
+            str(self.inlier_ratio),
+            str(self.svd_ratio),
+            str(self.homography_det)
             ])
-
-        return arr
 
 def warp(im, points, disp_min, disp_max, disp_len = None, disp_angle = None):
     h, w = im.shape[:2]
@@ -140,7 +147,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
     good_matches = [m[0] for m in matches if len(m) == 2 and m[0].distance < m[1].distance * config.DISTANCE_RATIO]
 
     if len(good_matches) < config.MIN_MATCH_COUNT:
-        logger.debug("# Matches = {0}, lower than threshold {1}", len(good_matches), config.MIN_MATCH_COUNT)
+        logger.debug("Matches lower than threshold. {0} < {1}", len(good_matches), config.MIN_MATCH_COUNT)
         return None
 
     # For homography calculation
@@ -148,7 +155,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches])
 
     # Obtain the homography matrix
-    H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=50, maxIters=2000, confidence=0.99)
+    H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
     matchesMask = mask.ravel().tolist()
 
     if H is None or len(H.shape) != 2:
@@ -156,7 +163,10 @@ def match(im1, kp1, des1, im2, kp2, des2):
         return None
 
     det = np.linalg.det(H)
-    logger.debug("Homography determinant = {0:.2f}", det)
+    logger.debug("Homography determinant = {0:f}", det)
+
+    if abs(det) < config.HOMOGRAPHY_DETERMINANT_THRESHOLD:
+        return None
 
     # Apply the perspective transformation to the source image corners
     h, w = im1.shape[:2]
@@ -165,9 +175,27 @@ def match(im1, kp1, des1, im2, kp2, des2):
     try:
         transformedCorners = cv2.perspectiveTransform(corners, H)
 
+        moments = cv2.moments(corners)
         moments2 = cv2.moments(transformedCorners)
-        for (name, val) in cv2.moments(corners).items():
+        for (name, val) in moments.items():
+            # Central Normalized Moments are of interest
+            # All other moments have differences that is too large
+            if("nu" not in name):
+                continue
+
             logger.debug("[Moment {0}] Original = {1:.2f}, New = {2:.2f}, Diff = {3:.2f}", name, val, moments2[name], abs(val - moments2[name]))
+
+        hu_moments = cv2.HuMoments(moments).flatten()
+        hu_moments2 = cv2.HuMoments(moments2).flatten()
+
+        for i in range(len(hu_moments)):
+            logger.debug("[Hu Moment {0}] O = {1:.2f}, New = {2:.2f}, Diff = {3:.2f}", i, hu_moments[i], hu_moments2[i], abs(hu_moments[i] - hu_moments2[i]))
+
+        dist = np.linalg.norm(hu_moments - hu_moments2)
+        logger.debug("[Hu Moment Distance] = {0}", dist)
+
+        if dist > 2:
+            return None
 
         # Draw a polygon on the second image joining the transformed corners
         im2 = cv2.polylines(im2, [np.int32(transformedCorners)], True, config.MATCH_RECT_COLOR, 2, cv2.LINE_AA)
