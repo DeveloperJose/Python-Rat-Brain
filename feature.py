@@ -8,12 +8,15 @@ import config
 
 from multiprocessing.pool import ThreadPool
 
-SIFT = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.08, edgeThreshold=30, sigma=2)
+import logbook
+logger = logbook.Logger(__name__)
+
+SIFT = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.15, edgeThreshold=10, sigma=2)
 FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PARAMS)
 BF = cv2.BFMatcher(normType=cv2.NORM_HAMMING)
 
 class Match(object):
-    def __init__(self, nissl_level, matches, H, mask, result, result2, area_ratio):
+    def __init__(self, nissl_level, matches, H, mask, result, result2):
         self.nissl_level = nissl_level
         self.matches = matches
         self.largest_match = max(matches, key=lambda x:x.distance)
@@ -22,7 +25,6 @@ class Match(object):
         self.inlier_count = mask.sum()
         self.result = result
         self.result2 = result2
-        self.area_ratio = area_ratio
 
     def comparison_key(self):
         return self.inlier_count
@@ -103,7 +105,7 @@ def nissl_load(nissl_level, color_flags=cv2.IMREAD_COLOR):
     path = os.path.join(config.NISSL_DIR, filename)
 
     if not os.path.exists(path):
-        print("Plate ", nissl_level, "not found")
+        logger.error("Tried to load plate {0} but it wasn't found in path {1}", nissl_level, path)
         return None
 
     return im_read(path, color_flags)
@@ -113,7 +115,7 @@ def nissl_load_sift(nissl_level):
     path = os.path.join(config.NISSL_DIR, filename)
 
     if not os.path.exists(path):
-        print("Creating SIFT for ", str(nissl_level))
+        logger.info("Creating SIFT for plate {0}", nissl_level)
         nissl = nissl_load(nissl_level, cv2.IMREAD_GRAYSCALE)
         if nissl is None:
             return None
@@ -138,6 +140,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
     good_matches = [m[0] for m in matches if len(m) == 2 and m[0].distance < m[1].distance * config.DISTANCE_RATIO]
 
     if len(good_matches) < config.MIN_MATCH_COUNT:
+        logger.debug("# Matches = {0}, lower than threshold {1}", len(good_matches), config.MIN_MATCH_COUNT)
         return None
 
     # For homography calculation
@@ -149,13 +152,11 @@ def match(im1, kp1, des1, im2, kp2, des2):
     matchesMask = mask.ravel().tolist()
 
     if H is None or len(H.shape) != 2:
-        print("couldn't get homography")
+        logger.debug("Couldn't get homography")
         return None
 
     det = np.linalg.det(H)
-    if(abs(det) > 10):
-        print("det high", det)
-        return None
+    logger.debug("Homography determinant = {0:.2f}", det)
 
     # Apply the perspective transformation to the source image corners
     h, w = im1.shape[:2]
@@ -164,37 +165,38 @@ def match(im1, kp1, des1, im2, kp2, des2):
     try:
         transformedCorners = cv2.perspectiveTransform(corners, H)
 
-        original_area = cv2.contourArea(corners)
-        transformed_area = cv2.contourArea(transformedCorners)
-        area_ratio = transformed_area / original_area
-
-        #if (area_ratio > 2 or area_ratio < 0.01):
-            #print("horrible match from areas", "ratio: ", area_ratio)
-            #return None
+        moments2 = cv2.moments(transformedCorners)
+        for (name, val) in cv2.moments(corners).items():
+            logger.debug("[Moment {0}] Original = {1:.2f}, New = {2:.2f}, Diff = {3:.2f}", name, val, moments2[name], abs(val - moments2[name]))
 
         # Draw a polygon on the second image joining the transformed corners
         im2 = cv2.polylines(im2, [np.int32(transformedCorners)], True, config.MATCH_RECT_COLOR, 2, cv2.LINE_AA)
     except:
-        area_ratio = 0
-        print("transformed corners failed")
+        logger.debug("Couldn't transform corners")
         return None
 
     # SIFT line matching
-    drawParameters = dict(matchColor=-1, singlePointColor=None, matchesMask=matchesMask, flags=2)
-    result = cv2.drawMatches(im1, kp1, im2, kp2, good_matches, None, **drawParameters)
+    drawParameters = dict(matchColor=None, singlePointColor=None, matchesMask=matchesMask, flags=cv2.DRAW_MATCHES_FLAGS_NOT_DRAW_SINGLE_POINTS)
+
+    im_matches = cv2.drawMatches(im1, kp1, im2, kp2, good_matches, None, **drawParameters)
 
     # Warp the first image onto the second image
-    im_out = cv2.warpPerspective(im1, H, (im2.shape[1],im2.shape[0]))
-    good_mask = (im_out != 0)
-    result2 = im2
-    #print("r2", result2.shape, "im_out", im_out.shape, "gm", good_mask.shape)
+    im_warp = cv2.warpPerspective(im1, H, (im2.shape[1],im2.shape[0]))
 
-    if len(good_mask.shape) == 3: # Color
-        result2[good_mask] = im_out[good_mask]
+    # Find the pixels which are visible in the warped image
+    overlay_mask = (im_warp != 0)
+
+    # Create a copy of the second image
+    im_overlay = im2
+
+    # Overlay the warped image on top of the 2nd image
+    # If the mask is grayscale the overlay will only be applied to the red channel
+    if len(overlay_mask.shape) == 3: # Overlay colors
+        im_overlay[overlay_mask] = im_warp[overlay_mask]
     else:
-        result2[good_mask, 0] = im_out[good_mask]
+        im_overlay[overlay_mask, 0] = im_warp[overlay_mask]
 
-    return Match(None, good_matches, H, mask, result, result2, area_ratio)
+    return Match(None, good_matches, H, mask, im_matches, im_overlay)
 
 def match_region_nissl(im_region, nissl_level):
     kp1, des1 = extract_sift(im_region)
@@ -210,10 +212,13 @@ def match_region_nissl(im_region, nissl_level):
         return m
 
 def match_sift_nissl(im_region, kp1, des1, nissl_level):
+
+    logger.debug("=============== Matching {0}", nissl_level)
     kp2, des2 = nissl_load_sift(nissl_level)
     im_nissl = nissl_load(nissl_level)
 
     m = match(im_region, kp1, des1, im_nissl, kp2, des2)
+
     if m is None:
         return None
     else:
@@ -227,10 +232,11 @@ def extract_sift(im):
     if len(im.shape) == 3:
         im = cv2.cvtColor(im, cv2.COLOR_RGB2GRAY)
 
-    #kp, des = SIFT.detectAndCompute(im, None)
-    print("Extracting SIFT")
+    # Use multithreading to split the affine detection work
     pool = ThreadPool(processes = cv2.getNumberOfCPUs())
+
     kp, des = affine_detect(SIFT, im, pool=pool)
+
     pool.close()
     pool.join()
 
@@ -298,11 +304,10 @@ def affine_detect(detector, img, mask=None, pool=None):
         ires = pool.map(f, params)
 
     for i, (k, d) in enumerate(ires):
-        print('affine sampling: %d / %d\r' % (i+1, len(params)), end='')
+        #logger.debug('affine sampling: %d / %d\r' % (i+1, len(params)))
         keypoints.extend(k)
         descrs.extend(d)
 
-    print()
     return keypoints, np.array(descrs)
 
 # https://isotope11.com/blog/storing-surf-sift-orb-keypoints-using-opencv-in-python

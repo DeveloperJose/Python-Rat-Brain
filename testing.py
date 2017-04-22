@@ -10,9 +10,13 @@ import scipy.misc as misc
 import feature
 import timing
 
+import logbook
+logger = logbook.Logger(__name__)
+
 sift = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.08, edgeThreshold=30, sigma=2)
 affine = True
-#sift = cv2.xfeatures2d.SIFT_create()
+
+
 def draw_kp(im):
     if affine:
         kp, des = feature.extract_sift(im)
@@ -23,6 +27,7 @@ def draw_kp(im):
     im_kp = cv2.drawKeypoints(im, kp, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     plt.figure(figsize=(10,10))
     plt.imshow(im_kp)
+
 
 def match(im):
     atlas = feature.im_read('scripts_testing/plate-34.jpg')
@@ -59,6 +64,7 @@ im_region = misc.imresize(im_region, 10)
 
 affine = True
 draw_kp(feature.im_read('scripts_testing/region-34.jpg'))
+draw_kp(im_region)
 
 timing.stopwatch()
 H = match(im_region)

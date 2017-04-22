@@ -20,6 +20,13 @@ else:
     NISSL_DIGITS = 3
     NISSL_COUNT = 161
 
+MULTITHREAD = False
+
+LOGGER_FORMAT_STRING = (
+    #u'[{record.time:%H:%M}] '
+    u'[{record.channel}:] {record.level_name}: {record.message}'
+)
+
 # We will attempt to reduce the images to this size but maintain aspect ratio
 RESIZE_WIDTH = 200
 

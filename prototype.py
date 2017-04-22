@@ -7,6 +7,9 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 
+import logbook
+logger = logbook.Logger(__name__)
+
 import config
 import feature
 from graph import Graph
@@ -230,14 +233,15 @@ class Prototype(QWidget):
         self.canvas_input.imshow(im)
 
     def set_im_region(self, im_region):
-        print("set_im_region", im_region.shape);
+        logger.info("Image Region Shape: {0}", im_region.shape)
         w, h, c = im_region.shape
 
         #if (config.ATLAS == "SWANSON"):
         import scipy.misc as misc
         reduction_percent = int(config.RESIZE_WIDTH/w * 100)
         im_region = misc.imresize(im_region, reduction_percent)
-        print("Resized to",im_region.shape)
+
+        logger.info("Resized region to {0}", im_region.shape)
 
         if config.SAVE_REGION:
             feature.im_write('region.jpg', im_region)
@@ -287,11 +291,8 @@ class Prototype(QWidget):
     #   Button Events
     ##################################################################################
     def on_click_btn_find_match(self):
-        print("Pressed find match...")
         self.thread_match.set_im(self.canvas_region.im)
-        #self.thread_pool.start(self.thread_match)
         self.thread_match.start()
-        print("Started thread...", self.canvas_region.im.shape)
 
     def on_click_btn_add_image(self):
         self.set_im_region(self.canvas_input.im.copy())
@@ -299,7 +300,6 @@ class Prototype(QWidget):
     def on_click_btn_warp(self):
         min_disp = self.slider_warp_disp.getRange()[0]
         max_disp = self.slider_warp_disp.getRange()[1]
-        print("Range: ", min_disp, max_disp)
         im_warp = feature.warp(self.canvas_region.im, 5, min_disp, max_disp)
         self.canvas_region.imshow(im_warp)
 
@@ -318,7 +318,6 @@ class Prototype(QWidget):
     #   Thread Events
     ##################################################################################
     def on_thread_match_start(self, total):
-        print("on_thread_match_start");
         self.progressbar_match.setMaximum(total)
 
         self.canvas_input.is_interactive = False
@@ -330,8 +329,6 @@ class Prototype(QWidget):
 
         if config.UI_ANGLE:
             self.slider_angle.setEnabled(False)
-
-        print("on_thread_match_start_end");
 
     def on_thread_match_update(self, index):
         self.progressbar_match.setValue(index)
@@ -358,6 +355,7 @@ class Prototype(QWidget):
 ##################################################################################
 #   Program Main
 ##################################################################################
+logbook.StreamHandler(sys.stdout, format_string=config.LOGGER_FORMAT_STRING).push_application()
 def main():
     app = QApplication(sys.argv)
     ui = Prototype()
