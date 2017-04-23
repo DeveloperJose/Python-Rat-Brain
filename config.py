@@ -22,7 +22,9 @@ else:
     NISSL_COUNT = 161
 
 # Homography matrices whose determinant is lower will be discarded
-HOMOGRAPHY_DETERMINANT_THRESHOLD = 0.01
+HOMOGRAPHY_DETERMINANT_THRESHOLD = 0.001
+
+HU_DISTANCE_THRESHOLD = 2
 
 RANSAC_REPROJ_TRESHHOLD = 50
 RANSAC_MAX_ITERS = 2000
@@ -51,8 +53,11 @@ UI_WARP = False
 # Should the UI have region angle change options?
 UI_ANGLE = False
 
+# Should the UI show the region keypoints?
+UI_SHOW_KP = True
+
 # Should we save the region you select in the program?
-SAVE_REGION = False
+UI_SAVE_REGION = False
 
 # Should feature matching use the FLANN KDTree approach?
 # If false, feature matching will be with BruteForce

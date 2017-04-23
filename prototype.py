@@ -236,23 +236,26 @@ class Prototype(QWidget):
         logger.info("Image Region Shape: {0}", im_region.shape)
         w, h, c = im_region.shape
 
-        #if (config.ATLAS == "SWANSON"):
+        # Reduce the size of images to a reasonable range
         import scipy.misc as misc
         reduction_percent = int(config.RESIZE_WIDTH/w * 100)
         im_region = misc.imresize(im_region, reduction_percent)
-
         logger.info("Resized region to {0}", im_region.shape)
 
-        if config.SAVE_REGION:
+        # Check if we should save the region for testing
+        if config.UI_SAVE_REGION:
             feature.im_write('region.jpg', im_region)
 
-        #n = 9
-        #kernel = np.ones((n,n),np.float32)/(n**2)
-        #import cv2
-        #im_region = cv2.filter2D(im_region,-1,kernel)
-
+        # Save the original selection for actual matching
         self.region = im_region
-        self.canvas_region.imshow(self.region)
+
+        # Check if the user would like to see the region keypoints
+        if config.UI_SHOW_KP:
+            kp, des = feature.extract_sift(im_region)
+            import cv2
+            im_region = cv2.drawKeypoints(im_region, kp, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+        self.canvas_region.imshow(im_region)
         self.canvas_input.clear_corners()
         self.btn_find_match.setEnabled(True)
         self.slider_ratio_test.setEnabled(True)
@@ -291,7 +294,7 @@ class Prototype(QWidget):
     #   Button Events
     ##################################################################################
     def on_click_btn_find_match(self):
-        self.thread_match.set_im(self.canvas_region.im)
+        self.thread_match.set_im(self.region)
         self.thread_match.start()
 
     def on_click_btn_add_image(self):

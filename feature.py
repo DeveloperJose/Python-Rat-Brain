@@ -16,7 +16,7 @@ FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PAR
 BF = cv2.BFMatcher(normType=cv2.NORM_HAMMING)
 
 class Match(object):
-    def __init__(self, nissl_level, matches, H, mask, result, result2):
+    def __init__(self, nissl_level, matches, H, mask, result, result2, dist):
         self.nissl_level = nissl_level
         self.matches = matches
         self.H = H
@@ -24,17 +24,19 @@ class Match(object):
         self.result = result
         self.result2 = result2
 
+        self.dist = dist
+
         self.matches_count = len(matches)
         self.inlier_count = mask.sum()
-        self.inlier_ratio = self.inlier_count / self.matches_count
+        self.inlier_ratio = int(self.inlier_count / self.matches_count * 100)
 
         self.homography_det = abs(np.linalg.det(H))
 
         self.svd = np.linalg.svd(self.H, compute_uv=False)
-        self.svd_ratio = self.svd[0] / self.svd[-1]
+        self.svd_ratio = int(self.svd[0] / self.svd[-1])
 
     def comparison_key(self):
-        return (-self.svd_ratio, self.inlier_ratio, -self.homography_det)
+        return -((1/self.inlier_ratio) * (self.svd_ratio) * self.homography_det * self.dist)
 
     # ['Plate', 'Match Count', 'Inlier Count', 'I/M', 'SVD', 'Det H']
     def to_string_array(self):
@@ -44,7 +46,8 @@ class Match(object):
             str(self.inlier_count),
             str(self.inlier_ratio),
             str(self.svd_ratio),
-            str(self.homography_det)
+            str(self.homography_det),
+            str((1/self.inlier_ratio) * (self.svd_ratio) * self.homography_det * self.dist)
             ])
 
 def warp(im, points, disp_min, disp_max, disp_len = None, disp_angle = None):
@@ -154,58 +157,60 @@ def match(im1, kp1, des1, im2, kp2, des2):
     src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches])
     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches])
 
-    # Obtain the homography matrix
+    # Obtain the homography matrix using RANSAC
     H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
-    matchesMask = mask.ravel().tolist()
 
+    # Check homography validity
     if H is None or len(H.shape) != 2:
         logger.debug("Couldn't get homography")
         return None
 
+    # This mask contains the inliers
+    matchesMask = mask.ravel().tolist()
+
+    # Calculate the homography determinant
     det = np.linalg.det(H)
     logger.debug("Homography determinant = {0:f}", det)
 
+    # If it's too low for comfort, don't consider the match
     if abs(det) < config.HOMOGRAPHY_DETERMINANT_THRESHOLD:
         return None
 
     # Apply the perspective transformation to the source image corners
     h, w = im1.shape[:2]
-    corners = np.float32([ [0, 0], [0, h - 1], [w - 1, h - 1], [w - 1, 0] ]).reshape(-1, 1, 2)
+    corners = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
 
+    # Attempt to transform corners based on homography
     try:
         transformedCorners = cv2.perspectiveTransform(corners, H)
-
-        moments = cv2.moments(corners)
-        moments2 = cv2.moments(transformedCorners)
-        for (name, val) in moments.items():
-            # Central Normalized Moments are of interest
-            # All other moments have differences that is too large
-            if("nu" not in name):
-                continue
-
-            logger.debug("[Moment {0}] Original = {1:.2f}, New = {2:.2f}, Diff = {3:.2f}", name, val, moments2[name], abs(val - moments2[name]))
-
-        hu_moments = cv2.HuMoments(moments).flatten()
-        hu_moments2 = cv2.HuMoments(moments2).flatten()
-
-        for i in range(len(hu_moments)):
-            logger.debug("[Hu Moment {0}] O = {1:.2f}, New = {2:.2f}, Diff = {3:.2f}", i, hu_moments[i], hu_moments2[i], abs(hu_moments[i] - hu_moments2[i]))
-
-        dist = np.linalg.norm(hu_moments - hu_moments2)
-        logger.debug("[Hu Moment Distance] = {0}", dist)
-
-        if dist > 2:
-            return None
-
-        # Draw a polygon on the second image joining the transformed corners
-        im2 = cv2.polylines(im2, [np.int32(transformedCorners)], True, config.MATCH_RECT_COLOR, 2, cv2.LINE_AA)
     except:
         logger.debug("Couldn't transform corners")
         return None
 
-    # SIFT line matching
+    # Only accept corners that remain convex after being transformed
+    isConvex = cv2.isContourConvex(transformedCorners)
+    if not isConvex:
+        return None
+
+    # Get the 7 Hu invariant moments
+    original_moments = cv2.HuMoments(cv2.moments(corners)).flatten()
+    transformed_moments = cv2.HuMoments(cv2.moments(transformedCorners)).flatten()
+
+    # Find the Euclidean distance between the moments
+    hu_distance = np.linalg.norm(original_moments - transformed_moments)
+    logger.debug("[Hu Moment Distance] = {0}", hu_distance)
+
+    # Ignore moments that are too large
+    if hu_distance > config.HU_DISTANCE_THRESHOLD:
+        return None
+
+    # Draw a polygon on the second image joining the transformed corners
+    im2 = cv2.polylines(im2, [np.int32(transformedCorners)], True, config.MATCH_RECT_COLOR, 2, cv2.LINE_AA)
+
+    # Prepare drawing parameters for drawing lines between matches
     drawParameters = dict(matchColor=None, singlePointColor=None, matchesMask=matchesMask, flags=cv2.DRAW_MATCHES_FLAGS_NOT_DRAW_SINGLE_POINTS)
 
+    # Draw the lines between the 2 images connecting matches
     im_matches = cv2.drawMatches(im1, kp1, im2, kp2, good_matches, None, **drawParameters)
 
     # Warp the first image onto the second image
@@ -224,7 +229,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
     else:
         im_overlay[overlay_mask, 0] = im_warp[overlay_mask]
 
-    return Match(None, good_matches, H, mask, im_matches, im_overlay)
+    return Match(None, good_matches, H, mask, im_matches, im_overlay, hu_distance)
 
 def match_region_nissl(im_region, nissl_level):
     kp1, des1 = extract_sift(im_region)
@@ -237,6 +242,7 @@ def match_region_nissl(im_region, nissl_level):
         return None
     else:
         m.nissl_level = nissl_level
+        logger.debug("Match accepted")
         return m
 
 def match_sift_nissl(im_region, kp1, des1, nissl_level):

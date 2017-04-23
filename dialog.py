@@ -9,7 +9,7 @@ class ResultsDialog(QDialog):
 
         self.filename = filename
         self.matches = matches
-        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'I/M', 'SVD', 'Det H']
+        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'I/M', 'SVD', 'Det H', 'Etc']
 
         layout = QVBoxLayout()
 
