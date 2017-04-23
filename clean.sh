@@ -1,5 +1,5 @@
 # Remove temporary test files
-rm region.jpg
+rm *.jpg
 
 # Remove all of Swanson's SIFT files
 find atlas_swanson -name "*.sift" -delete

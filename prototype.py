@@ -7,11 +7,13 @@ from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 
+import config
 import logbook
 logger = logbook.Logger(__name__)
+logbook.StreamHandler(sys.stdout, level=logbook.INFO, format_string=config.LOGGER_FORMAT_STRING).push_application()
 
-import config
 import feature
+import timing
 from graph import Graph
 from dialog import ResultsDialog
 from thread import MatchingThread
@@ -327,21 +329,26 @@ class Prototype(QWidget):
 
         self.btn_open.setEnabled(False)
         self.btn_find_match.setEnabled(False)
-
+        self.btn_add_image.setEnabled(False)
         self.slider_ratio_test.setEnabled(False)
 
         if config.UI_ANGLE:
             self.slider_angle.setEnabled(False)
+
+        # Timing
+        timing.stopwatch()
 
     def on_thread_match_update(self, index):
         self.progressbar_match.setValue(index)
         self.label_match_status.setText("Matching with plate " + str(index))
 
     def on_thread_match_end(self, matches):
+        timing.stopwatch("Matching Time: ")
         self.canvas_input.is_interactive = True
 
         self.btn_open.setEnabled(True)
         self.btn_find_match.setEnabled(True)
+        self.btn_add_image.setEnabled(True)
         self.slider_ratio_test.setEnabled(True)
 
         if config.UI_ANGLE:
@@ -358,7 +365,6 @@ class Prototype(QWidget):
 ##################################################################################
 #   Program Main
 ##################################################################################
-logbook.StreamHandler(sys.stdout, format_string=config.LOGGER_FORMAT_STRING).push_application()
 def main():
     app = QApplication(sys.argv)
     ui = Prototype()

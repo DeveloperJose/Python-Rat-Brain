@@ -246,7 +246,6 @@ def match_region_nissl(im_region, nissl_level):
         return m
 
 def match_sift_nissl(im_region, kp1, des1, nissl_level):
-
     logger.debug("=============== Matching {0}", nissl_level)
     kp2, des2 = nissl_load_sift(nissl_level)
     im_nissl = nissl_load(nissl_level)

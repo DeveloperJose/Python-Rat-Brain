@@ -3,22 +3,20 @@ import atexit
 from time import clock
 from datetime import timedelta
 
-import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+import logbook
+logger = logbook.Logger(__name__)
 
 def secondsToStr(t):
     return str(timedelta(seconds=t))
 
 line = "="*40
 
-def log(s, elapsed=None):
-    logger.debug(line)
-    logger.debug(secondsToStr(clock()), '-', s)
+def log(message, elapsed=None):
+    logger.info(line)
+    logger.info("{0} - {1}", secondsToStr(clock()),  message)
     if elapsed:
-        logger.debug("Elapsed time:", elapsed)
-    logger.debug(line)
-    logger.debug()
+        logger.info("Elapsed time: {0}", elapsed)
+    logger.info(line)
 
 stopwatch_start = None
 def stopwatch(message="Stopwatch: "):
@@ -26,7 +24,6 @@ def stopwatch(message="Stopwatch: "):
     if (stopwatch_start is None):
         stopwatch_start = clock()
     else:
-
         elapsed = clock() - stopwatch_start
         log(message, secondsToStr(elapsed))
         stopwatch_start = None

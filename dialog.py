@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QAbstractItemView
 import numpy as np
+import feature
+
 class ResultsDialog(QDialog):
     def __init__(self, filename, matches, parent=None):
         super(ResultsDialog, self).__init__(parent)
@@ -47,6 +49,11 @@ class ResultsDialog(QDialog):
 
             im_result = match.result
             im_result2 = match.result2
+
+            # Save results
+            filename = str(match.nissl_level) + '-results-'
+            feature.im_write(filename + 'matches.jpg', im_result)
+            feature.im_write(filename + 'overlay.jpg', im_result2)
 
             image_diag = ImageDialog(im=im_result)
             image_diag.show()

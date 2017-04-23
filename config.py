@@ -36,7 +36,7 @@ SIFT_SIGMA = 2
 
 # Should multithreading be used when matching?
 # If True, the debug logs will not be in sequential order
-MULTITHREAD = False
+MULTITHREAD = True
 
 # The formatting string that will be used by the loggers
 LOGGER_FORMAT_STRING = (
@@ -54,7 +54,7 @@ UI_WARP = False
 UI_ANGLE = False
 
 # Should the UI show the region keypoints?
-UI_SHOW_KP = True
+UI_SHOW_KP = False
 
 # Should we save the region you select in the program?
 UI_SAVE_REGION = False
