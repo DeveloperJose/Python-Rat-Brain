@@ -1,6 +1,9 @@
 # Atlas PDFs
 atlas_swanson_pdf/
 
+# Paxinos and Watson
+atlas_pw/
+
 # SIFT descriptors
 *.sift
 

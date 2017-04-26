@@ -130,6 +130,12 @@ def nissl_load_sift(nissl_level):
         if nissl is None:
             return None
 
+        import scipy.misc as misc
+        old_shape = nissl.shape
+        reduction_percent = int(config.RESIZE_WIDTH/old_shape[0] * 100)
+        nissl = misc.imresize(nissl, reduction_percent)
+        logger.debug("Resized region from {0} to {1}", old_shape, nissl.shape)
+
         kp, des = extract_sift(nissl)
         temp = pickle_sift(kp, des)
         pickle.dump(temp, open(path, "wb"))

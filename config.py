@@ -16,7 +16,7 @@ if (ATLAS == "SWANSON"):
     NISSL_COUNT = 73
 else:
     NISSL_DEFAULT_FILE = 'RBSC7-060.jpg'
-    NISSL_DIR = 'atlas_paxinos_watson_25'
+    NISSL_DIR = 'atlas_pw'
     NISSL_PREFIX = 'RBSC7-'
     NISSL_DIGITS = 3
     NISSL_COUNT = 161
