@@ -81,6 +81,8 @@ class Testing(object):
         self.progressBar(self.current, 74, prefix='Comparing to Swanson')
         match = feature.match_sift_nissl(self.im, self.kp, self.des, sw_level)
 
+        self.current += 1
+
         if match is None:
             return
 
@@ -104,8 +106,8 @@ class Testing(object):
 
 
     def main(self):
-        process_with_pw = False
-        process_with_sw = True
+        process_with_pw = True
+        process_with_sw = False
 
         # ***** Precalculation and saving of SIFT
         logger.info("Beginning SIFT preparations")
