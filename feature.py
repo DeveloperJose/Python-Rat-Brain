@@ -180,6 +180,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
 
     # If it's too low for comfort, don't consider the match
     if abs(det) < config.HOMOGRAPHY_DETERMINANT_THRESHOLD:
+        logger.debug("Failed homography test")
         return None
 
     # Apply the perspective transformation to the source image corners
@@ -195,7 +196,8 @@ def match(im1, kp1, des1, im2, kp2, des2):
 
     # Only accept corners that remain convex after being transformed
     isConvex = cv2.isContourConvex(transformedCorners)
-    if not isConvex:
+    if not isConvex and not config.ALLOW_NON_CONVEX_CORNERS:
+        logger.debug("Transformed corners not convex")
         return None
 
     # Get the 7 Hu invariant moments
@@ -208,6 +210,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
 
     # Ignore moments that are too large
     if hu_distance > config.HU_DISTANCE_THRESHOLD:
+        logger.debug("Failed hu moment test")
         return None
 
     # Draw a polygon on the second image joining the transformed corners

@@ -22,16 +22,37 @@ else:
     NISSL_COUNT = 161
 
 # Homography matrices whose determinant is lower will be discarded
-HOMOGRAPHY_DETERMINANT_THRESHOLD = 0.001
+# Default: 0.001
+HOMOGRAPHY_DETERMINANT_THRESHOLD = 0.000000001
 
-HU_DISTANCE_THRESHOLD = 2
+# When transforming corners using homography, should we allow non-convex shapes?
+ALLOW_NON_CONVEX_CORNERS = True
 
-RANSAC_REPROJ_TRESHHOLD = 50
+# Default: 2
+# Moments larger than the threshold will be discarded
+HU_DISTANCE_THRESHOLD = 2e100
+
+# Default: 50 (Regions)
+# The higher the threshold, the lower the inliers
+RANSAC_REPROJ_TRESHHOLD = 10
+
+# Default: 2000
 RANSAC_MAX_ITERS = 2000
+
+# Default: 0.99
 RANSAC_CONFIDENCE = 0.99
 
-SIFT_CONTRAST_THRESHOLD = 0.08
+# Default: 0.08 (Regions)
+# The larger the threshold, the less features are produced by the detector.
+SIFT_CONTRAST_THRESHOLD = 0.07
+
+# Default: 30 (Regions)
+# The larger the threshold, the more features that are retained
 SIFT_EDGE_THRESHOLD = 30
+
+# Default: 2 (Regions)
+# Sigma of Gaussian used by SIFT
+# Reduce for images captured by a weak camera with soft lenses
 SIFT_SIGMA = 2
 
 # Should multithreading be used when matching?
@@ -44,6 +65,7 @@ LOGGER_FORMAT_STRING = (
     u'[{record.channel}:] {record.level_name}: {record.message}'
 )
 
+# Default: 200 (Regions)
 # We will attempt to reduce the image width to this size but maintain aspect ratio
 RESIZE_WIDTH = 200
 
