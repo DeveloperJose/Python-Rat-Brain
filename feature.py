@@ -36,7 +36,8 @@ class Match(object):
         self.svd_ratio = int(self.svd[0] / self.svd[-1])
 
     def comparison_key(self):
-        return -((1/self.inlier_ratio) * (self.svd_ratio) * self.homography_det * self.dist)
+        return self.inlier_count
+        #return -((1/self.inlier_ratio) * (self.svd_ratio) * self.homography_det * self.dist)
 
     # ['Plate', 'Match Count', 'Inlier Count', 'I/M', 'SVD', 'Det H']
     def to_string_array(self):
