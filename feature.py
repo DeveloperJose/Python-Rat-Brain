@@ -16,7 +16,7 @@ FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PAR
 BF = cv2.BFMatcher(normType=cv2.NORM_HAMMING)
 
 class Match(object):
-    def __init__(self, nissl_level, matches, H, mask, result, result2, dist):
+    def __init__(self, nissl_level, matches, H, mask, result, result2, original_moments, transformed_moments, hu_dist, isConvex):
         self.nissl_level = nissl_level
         self.matches = matches
         self.H = H
@@ -24,7 +24,12 @@ class Match(object):
         self.result = result
         self.result2 = result2
 
-        self.dist = dist
+        self.original_moments = original_moments
+        self.transformed_moments = transformed_moments
+
+        self.hu_dist = hu_dist
+
+        self.isConvex = isConvex
 
         self.matches_count = len(matches)
         self.inlier_count = mask.sum()
@@ -47,8 +52,11 @@ class Match(object):
             str(self.inlier_count),
             str(self.inlier_ratio),
             str(self.svd_ratio),
-            str(self.homography_det),
-            str((1/self.inlier_ratio) * (self.svd_ratio) * self.homography_det * self.dist)
+            "{0:.3f}".format(self.homography_det),
+            "{0:.3f}".format(self.original_moments['m00']),
+            "{0:.3f}".format(self.transformed_moments['m00']),
+            "{0:.3f}".format(self.hu_dist),
+            str(self.isConvex)
             ])
 
 def warp(im, points, disp_min, disp_max, disp_len = None, disp_angle = None):
@@ -201,12 +209,16 @@ def match(im1, kp1, des1, im2, kp2, des2):
         logger.debug("Transformed corners not convex")
         return None
 
+    # Get the moments
+    original_moments = cv2.moments(corners)
+    transformed_moments = cv2.moments(transformedCorners)
+
     # Get the 7 Hu invariant moments
-    original_moments = cv2.HuMoments(cv2.moments(corners)).flatten()
-    transformed_moments = cv2.HuMoments(cv2.moments(transformedCorners)).flatten()
+    original_hu_moments = cv2.HuMoments(original_moments).flatten()
+    transformed_hu_moments = cv2.HuMoments(transformed_moments).flatten()
 
     # Find the Euclidean distance between the moments
-    hu_distance = np.linalg.norm(original_moments - transformed_moments)
+    hu_distance = np.linalg.norm(original_hu_moments - transformed_hu_moments)
     logger.debug("[Hu Moment Distance] = {0}", hu_distance)
 
     # Ignore moments that are too large
@@ -239,7 +251,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
     else:
         im_overlay[overlay_mask, 0] = im_warp[overlay_mask]
 
-    return Match(None, good_matches, H, mask, im_matches, im_overlay, hu_distance)
+    return Match(None, good_matches, H, mask, im_matches, im_overlay, original_moments, transformed_moments, hu_distance, isConvex)
 
 def match_region_nissl(im_region, nissl_level):
     kp1, des1 = extract_sift(im_region)
