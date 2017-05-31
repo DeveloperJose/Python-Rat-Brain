@@ -9,7 +9,7 @@ ATLAS = "SWANSON"
 NISSL_EXT = ".jpg"
 
 if (ATLAS == "SWANSON"):
-    NISSL_DEFAULT_FILE = 'Level-34.jpg'
+    NISSL_DEFAULT_FILE = 'C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region-34.jpg'
     NISSL_DIR = "atlas_swanson"
     NISSL_PREFIX = "Level-"
     NISSL_DIGITS = 2
@@ -21,12 +21,14 @@ else:
     NISSL_DIGITS = 3
     NISSL_COUNT = 161
 
+HOMOGRAPHY_CONVEXITY = True
+
 # Homography matrices whose determinant is lower will be discarded
 # Default: 0.001
 HOMOGRAPHY_DETERMINANT_THRESHOLD = 0.000000001
 
 # When transforming corners using homography, should we allow non-convex shapes?
-ALLOW_NON_CONVEX_CORNERS = True
+ALLOW_NON_CONVEX_CORNERS = False
 
 # Default: 2
 # Moments larger than the threshold will be discarded

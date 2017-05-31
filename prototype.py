@@ -10,7 +10,7 @@ from PyQt5.QtGui import *
 import config
 import logbook
 logger = logbook.Logger(__name__)
-logbook.StreamHandler(sys.stdout, level=logbook.INFO, format_string=config.LOGGER_FORMAT_STRING).push_application()
+logbook.StreamHandler(sys.stdout, level=logbook.DEBUG, format_string=config.LOGGER_FORMAT_STRING).push_application()
 
 import feature
 import timing
