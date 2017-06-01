@@ -173,10 +173,12 @@ def match(im1, kp1, des1, im2, kp2, des2):
     src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches])
     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches])
 
+    logger.debug("Src Pts {0}, Dst Pts {1}", src_pts.shape, dst_pts.shape)
+
     # Calculate the homography using RANSAC
     #H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
-
-    H, mask = homography.get_ransac_homography(src_pts, dst_pts)
+    model = homography.RansacHomographyModel(src_pts, dst_pts, affine=True)
+    H, mask = homography.H_from_ransac(src_pts, dst_pts, model)
 
     # Check homography validity
     if H is None or len(H.shape) != 2:
