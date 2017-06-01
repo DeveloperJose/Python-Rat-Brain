@@ -173,32 +173,10 @@ def match(im1, kp1, des1, im2, kp2, des2):
     src_pts = np.float32([kp1[m.queryIdx].pt for m in good_matches])
     dst_pts = np.float32([kp2[m.trainIdx].pt for m in good_matches])
 
-    H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
+    # Calculate the homography using RANSAC
+    #H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
 
-    # Obtain the homography matrix using RANSAC
-    if config.HOMOGRAPHY_CONVEXITY:
-        #logger.debug("Homography convexity extra calculations")
-        for i in range(10):
-            H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
-
-            if H is None or len(H.shape) != 2:
-                continue
-
-            # Apply the perspective transformation to the source image corners
-            h, w = im1.shape[:2]
-            corners = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
-
-            # Attempt to transform corners based on homography
-            try:
-                transformedCorners = cv2.perspectiveTransform(corners, H)
-            except:
-                logger.debug("Couldn't transform corners loop")
-                continue
-
-            # Only accept corners that remain convex after being transformed
-            isConvex = cv2.isContourConvex(transformedCorners)
-            if isConvex:
-                break
+    H, mask = homography.get_ransac_homography(src_pts, dst_pts)
 
     # Check homography validity
     if H is None or len(H.shape) != 2:
