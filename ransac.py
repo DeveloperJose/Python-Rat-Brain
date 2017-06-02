@@ -93,7 +93,7 @@ def ransac(src_pts, dst_pts, corners, threshold=500,max_iters=1000):
 
     logger.debug("Inliers: {0}", best_inliers_count)
 
-    return best_homography, best_inliers_mask.tolist()
+    return best_homography, best_inliers_mask
 
 if __name__ == '__main__':
     import feature

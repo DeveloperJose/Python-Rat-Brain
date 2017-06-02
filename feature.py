@@ -43,6 +43,7 @@ class Match(object):
 
     def comparison_key(self):
         return self.inlier_count
+        #return self.inlier_count
         #return -((1/self.inlier_ratio) * (self.svd_ratio) * self.homography_det * self.dist)
 
     # ['Plate', 'Match Count', 'Inlier Count', 'I/M', 'SVD', 'Det H']
@@ -180,14 +181,10 @@ def match(im1, kp1, des1, im2, kp2, des2):
     logger.debug("Src Pts {0}, Dst Pts {1}", src_pts.shape, dst_pts.shape)
 
     # Calculate the homography using RANSAC
-    H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
-
-    matchesMask = mask.ravel().tolist()
+    #H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
 
     import ransac
-    H, matchesMask = ransac.ransac(src_pts, dst_pts, corners)
-
-    logger.debug("My Mask {0}", mask.shape)
+    H, mask = ransac.ransac(src_pts, dst_pts, corners)
 
     # Check homography validity
     if H is None or len(H.shape) != 2:

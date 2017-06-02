@@ -11,7 +11,7 @@ class ResultsDialog(QDialog):
 
         self.filename = filename
         self.matches = matches
-        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'H Cond #', 'Det H', 'Original Area', 'Transformed Area', 'Hu Dist', 'Convex?']
+        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'H Cond #', 'Det H', 'Orig Area', 'Trans Area', 'Hu Dist', 'Convex?']
 
         layout = QVBoxLayout()
 
@@ -19,7 +19,7 @@ class ResultsDialog(QDialog):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setMinimumWidth(1000)
+        self.table.setMinimumWidth(len(self.labels) * 125 + 100)
         self.table.setMinimumHeight(450)
         self.table.setRowCount(len(matches))
         self.table.setColumnCount(len(self.labels))
