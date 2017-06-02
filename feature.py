@@ -180,12 +180,14 @@ def match(im1, kp1, des1, im2, kp2, des2):
     logger.debug("Src Pts {0}, Dst Pts {1}", src_pts.shape, dst_pts.shape)
 
     # Calculate the homography using RANSAC
-    #H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
+    H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
+
+    matchesMask = mask.ravel().tolist()
 
     import ransac
-    H, mask = ransac.ransac(src_pts, dst_pts, corners)
+    H, matchesMask = ransac.ransac(src_pts, dst_pts, corners)
 
-    #logger.debug("Mask: {0}", mask.shape)
+    logger.debug("My Mask {0}", mask.shape)
 
     # Check homography validity
     if H is None or len(H.shape) != 2:
