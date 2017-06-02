@@ -6,74 +6,6 @@ import sys
 import config
 import logbook
 logger = logbook.Logger(__name__)
-logbook.StreamHandler(sys.stdout, level=logbook.DEBUG, format_string=config.LOGGER_FORMAT_STRING).push_application()
-
-class RansacHomographyModel(object):
-    """ Class for testing homography fit with ransac.py from
-        http://www.scipy.org/Cookbook/RANSAC"""
-
-    def __init__(self, src_pts, dst_pts, affine):
-        self.src_pts = src_pts
-        self.dst_pts = dst_pts
-        self.affine = affine
-
-    def fit(self, data_indices):
-        """ Fit homography to four selected correspondences. """
-        logger.debug("Data Indices {0}", data_indices.shape)
-        fp = self.src_pts[data_indices, :]
-        tp = self.dst_pts[data_indices, :]
-
-        logger.debug("Fit - Fp {0}, Tp {1}", fp.shape, tp.shape)
-
-        if self.affine:
-            return Haffine_from_points(make_homog(fp.T), make_homog(tp.T))
-        else:
-            return H_from_points(make_homog(fp.T), make_homog(tp.T))
-
-    def is_valid_model(self, model, data_indices):
-
-        return True
-
-    def get_error(self, data_indices, model):
-        """ Apply homography to all correspondences,
-            return error for each transformed point. """
-
-        fp = make_homog(self.src_pts[data_indices, :].T)
-        tp = make_homog(self.dst_pts[data_indices, :].T)
-
-        # transform fp
-        fp_transformed = np.dot(model,fp)
-
-        # normalize hom. coordinates
-        fp_transformed = normalize(fp_transformed)
-
-        # Point counts are not the same?
-        #if tp.shape != fp_transformed.shape:
-        #    logger.debug("Tp {0}, Fp_T {1}, Data {2}", tp.shape, fp_transformed.shape, data.shape)
-        #    return None
-
-        # return error per point
-        diff = tp-fp_transformed
-        err_sum = np.sum(diff, axis=0)**2
-        return np.sqrt(err_sum)
-
-def H_from_ransac(fp,tp,model,maxiter=1000,match_theshold=10):
-    """ Robust estimation of homography H from point
-        correspondences using RANSAC (ransac.py from
-        http://www.scipy.org/Cookbook/RANSAC).
-
-        input: fp,tp (3*n arrays) points in hom. coordinates. """
-
-    import ransac
-
-    # group corresponding points
-    #data = np.vstack((fp,tp))
-    data = fp
-
-    # compute H and return
-    H, ransac_data = ransac.ransac(data,model,4,maxiter,match_theshold,10,return_all=True)
-    return H,ransac_data['inliers']
-
 
 def H_from_points(fp,tp):
     """ Find homography H, such that fp is mapped to tp
@@ -86,7 +18,7 @@ def H_from_points(fp,tp):
 
     # condition points (important for numerical reasons)
     # --from points--
-    m = np.mean(fp[:2], axis=1)
+    m = np.mean(fp[:2], maaxis=1)
     maxstd = np.max(np.std(fp[:2], axis=1)) + 1e-9
     C1 = np.diag([1/maxstd, 1/maxstd, 1])
     C1[0][2] = -m[0]/maxstd
@@ -175,9 +107,3 @@ def make_homog(points):
         homogeneous coordinates. """
 
     return np.vstack((points,np.ones((1,points.shape[1]))))
-
-
-if __name__ == '__main__':
-    import feature
-    im_region = feature.im_read('C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region.jpg')
-    feature.match_region_nissl(im_region, nissl_level=34)
