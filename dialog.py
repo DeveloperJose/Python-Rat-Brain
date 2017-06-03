@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QAbstractItemView
-import numpy as np
+from PyQt5.QtCore import Qt
+
+import config
 import feature
 
 class ResultsDialog(QDialog):
@@ -11,7 +13,7 @@ class ResultsDialog(QDialog):
 
         self.filename = filename
         self.matches = matches
-        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'H Cond #', 'Det H', 'Orig Area', 'Trans Area', 'Hu Dist', 'Convex?']
+        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'H Cond #', 'Det H', 'Orig Area', 'Trans Area', 'Hu Dist', 'Convex?', "Total Error", "Min Error", "Max Error"]
 
         layout = QVBoxLayout()
 
@@ -19,7 +21,7 @@ class ResultsDialog(QDialog):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setMinimumWidth(len(self.labels) * 125 + 100)
+        self.table.setMinimumWidth(len(self.labels) * 160 + 100)
         self.table.setMinimumHeight(450)
         self.table.setRowCount(len(matches))
         self.table.setColumnCount(len(self.labels))
@@ -40,38 +42,34 @@ class ResultsDialog(QDialog):
         self.setLayout(layout)
 
     def on_double_click_table(self):
+        # Get the rows
         rows = sorted(set(index.row() for index in
                           self.table.selectedIndexes()))
 
         if (len(rows) > 0):
+            # Get the match selected
             row = rows[0]
             match = self.matches[row]
 
-            im_result = match.result
-            im_result2 = match.result2
-
-            # Save results
-            filename = str(match.nissl_level) + '-results-'
-            feature.im_write(filename + 'matches.jpg', im_result)
-            feature.im_write(filename + 'overlay.jpg', im_result2)
-
-            image_diag = ImageDialog(im=im_result)
-            image_diag.show()
-
-            if not np.array_equal(im_result, im_result2):
-                imag_diag2 = ImageDialog(im=im_result2)
-                imag_diag2.show()
-
+            # Open the experiment results
+            for im_info in match.im_results:
+                image_diag = ImageDialog(im=im_info.im, title=im_info.title)
+                image_diag.show()
+                # Save results if needed
+                if config.UI_SAVE_RESULTS:
+                    filename = str(match.nissl_level) + '-results-' + im_info.filename
+                    feature.im_write(filename + '.jpg', im_info.im)
 
 class ImageDialog(QDialog):
-    def __init__(self, im, parent=None):
+    def __init__(self, im, title, parent=None):
         super(ImageDialog, self).__init__(parent)
 
-        self.setWindowTitle("Image")
+        self.setWindowTitle(title)
+        self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
         layout = QVBoxLayout()
 
         from graph import Graph
-        self.canvas = Graph(self, width=5, height=5, dpi=100)
+        self.canvas = Graph(self, width=20, height=20, dpi=100)
         self.canvas.is_interactive = False
         layout.addWidget(self.canvas)
 

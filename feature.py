@@ -5,60 +5,68 @@ import os
 import pickle
 import random
 import config
-import homography
 
 from multiprocessing.pool import ThreadPool
 
 import logbook
 logger = logbook.Logger(__name__)
 
-SIFT = cv2.xfeatures2d.SIFT_create(contrastThreshold=config.SIFT_CONTRAST_THRESHOLD, edgeThreshold=config.SIFT_EDGE_THRESHOLD, sigma=config.SIFT_SIGMA)
+# ****************************** SIFT Parameters
+SIFT = cv2.xfeatures2d.SIFT_create(nfeatures=3, contrastThreshold=config.SIFT_CONTRAST_THRESHOLD, edgeThreshold=config.SIFT_EDGE_THRESHOLD, sigma=config.SIFT_SIGMA)
+
+# ****************************** Matcher Parameters
 FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PARAMS)
 BF = cv2.BFMatcher(normType=cv2.NORM_HAMMING)
 
+class ImageInfo(object):
+    def __init__(self, im, title, filename):
+        self.im = im
+        self.title = title
+        self.filename = filename
+
 class Match(object):
-    def __init__(self, nissl_level, matches, H, mask, result, result2, original_moments, transformed_moments, hu_dist, isConvex):
+    def __init__(self, nissl_level, matches, ransac_results, im_results, original_moments, transformed_moments, hu_dist, isConvex):
         self.nissl_level = nissl_level
         self.matches = matches
-        self.H = H
-        self.mask = mask
-        self.result = result
-        self.result2 = result2
-
+        self.ransac_results = ransac_results
+        self.im_results = im_results
         self.original_moments = original_moments
         self.transformed_moments = transformed_moments
-
         self.hu_dist = hu_dist
-
         self.isConvex = isConvex
 
+        # Process variables
+        self.H = ransac_results["homography"]
+        self.inlier_count = ransac_results["inlier_count"]
+
         self.matches_count = len(matches)
-        self.inlier_count = mask.sum()
-        self.inlier_ratio = int(self.inlier_count / self.matches_count * 100)
+        self.inlier_ratio = self.inlier_count / self.matches_count * 100
 
-        self.homography_det = abs(np.linalg.det(H))
-
+        self.homography_det = abs(np.linalg.det(self.H))
         self.svd = np.linalg.svd(self.H, compute_uv=False)
-        self.svd_ratio = int(self.svd[0] / self.svd[-1])
+        self.cond_num = int(self.svd[0] / self.svd[-1])
 
     def comparison_key(self):
         return self.inlier_count
         #return self.inlier_count
         #return -((1/self.inlier_ratio) * (self.svd_ratio) * self.homography_det * self.dist)
 
-    # ['Plate', 'Match Count', 'Inlier Count', 'I/M', 'SVD', 'Det H']
+    # "{0:.8f}".format
     def to_string_array(self):
         return np.array([
             "Plate #" + str(self.nissl_level),
             str(self.matches_count),
             str(self.inlier_count),
-            str(self.inlier_ratio),
-            str(self.svd_ratio),
-            "{0:.3f}".format(self.homography_det),
-            "{0:.3f}".format(self.original_moments['m00']),
-            "{0:.3f}".format(self.transformed_moments['m00']),
-            "{0:.3f}".format(self.hu_dist),
-            str(self.isConvex)
+            "{0:.1f}".format(self.inlier_ratio),
+            str(self.cond_num),
+            str(self.homography_det),
+            str(self.original_moments['m00']),
+            str(self.transformed_moments['m00']),
+            str(self.hu_dist),
+            str(self.isConvex),
+            str(self.ransac_results["total_error"]),
+            str(self.ransac_results["min_error"]),
+            str(self.ransac_results["max_error"])
             ])
 
 def warp(im, points, disp_min, disp_max, disp_len = None, disp_angle = None):
@@ -157,7 +165,7 @@ def nissl_load_sift(nissl_level):
         kp, des = unpickle_sift(raw_sift)
         return kp, des
 
-def match(im1, kp1, des1, im2, kp2, des2):
+def match(im1, kp1, des1, im2, kp2, des2, plate=None):
     if config.MATCH_WITH_FLANN:
         matches = FLANN.knnMatch(des1, des2, k=2)
     else:
@@ -177,33 +185,29 @@ def match(im1, kp1, des1, im2, kp2, des2):
     h, w = im1.shape[:2]
     corners = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
 
-
-    logger.debug("Src Pts {0}, Dst Pts {1}", src_pts.shape, dst_pts.shape)
-
     # Calculate the homography using RANSAC
     #H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
 
     import ransac
-    H, mask = ransac.ransac(src_pts, dst_pts, corners)
+    ransac_results = ransac.ransac(src_pts, dst_pts, corners)
+    H = ransac_results["homography"]
+
+    #if plate == 34:
+    #    import pdb
+    #    pdb.set_trace()
 
     # Check homography validity
     if H is None or len(H.shape) != 2:
         logger.debug("Couldn't get homography")
         return None
 
-    # This mask contains the inliers
-    matchesMask = mask.ravel().tolist()
-
     # Calculate the homography determinant
-    det = np.linalg.det(H)
-    logger.debug("Homography determinant = {0:f}", det)
+    #det = np.linalg.det(H)
 
     # If it's too low for comfort, don't consider the match
     #if abs(det) < config.HOMOGRAPHY_DETERMINANT_THRESHOLD:
     #    logger.debug("Failed homography test")
     #    return None
-
-    # Apply the perspective transformation to the source image corners
 
     # Attempt to transform corners based on homography
     try:
@@ -228,22 +232,58 @@ def match(im1, kp1, des1, im2, kp2, des2):
 
     # Find the Euclidean distance between the moments
     hu_distance = np.linalg.norm(original_hu_moments - transformed_hu_moments)
-    logger.debug("[Hu Moment Distance] = {0}", hu_distance)
 
     # Ignore moments that are too large
     if hu_distance > config.HU_DISTANCE_THRESHOLD:
         logger.debug("Failed hu moment test")
         return None
 
-    # Draw a polygon on the second image joining the transformed corners
-    im2 = cv2.polylines(im2, [np.int32(transformedCorners)], True, config.MATCH_RECT_COLOR, 2, cv2.LINE_AA)
+    # ******************** Image 1: All lines
+    im_all_lines = cv2.drawMatches(im1, kp1, im2, kp2, good_matches, None, None, None, None, cv2.DRAW_MATCHES_FLAGS_DEFAULT)
 
-    # Prepare drawing parameters for drawing lines between matches
-    drawParameters = dict(matchColor=None, singlePointColor=None, matchesMask=matchesMask, flags=cv2.DRAW_MATCHES_FLAGS_NOT_DRAW_SINGLE_POINTS)
+    # ******************** Image 2: Only inliers + corner rectangle
+    # Get the inliers
+    inlier_mask = ransac_results["inlier_mask"]
+
+    # Draw a polygon on the second image joining the transformed corners
+    im_corner_rectangle = cv2.polylines(im2, [np.int32(transformedCorners)], True, config.MATCH_RECT_COLOR, 2, cv2.LINE_AA)
 
     # Draw the lines between the 2 images connecting matches
-    im_matches = cv2.drawMatches(im1, kp1, im2, kp2, good_matches, None, **drawParameters)
+    im_inliers = cv2.drawMatches(im1, kp1, im_corner_rectangle, kp2, good_matches, None, None, None, inlier_mask.tolist(), cv2.DRAW_MATCHES_FLAGS_NOT_DRAW_SINGLE_POINTS)
 
+    # ******************** Image 3: The original 4 points
+    # Get the 4 points
+    original_inlier_mask = ransac_results["original_inlier_mask"]
+
+    im_original = cv2.drawMatches(im1, kp1, im2, kp2, good_matches, None, None, None, original_inlier_mask.tolist(), cv2.DRAW_MATCHES_FLAGS_NOT_DRAW_SINGLE_POINTS)
+
+    original_pts = src_pts[original_inlier_mask]
+
+    transformed_pts = None
+    try:
+        transformed_pts = cv2.perspectiveTransform(np.array([original_pts]), H).reshape(4, 2)
+    except:
+        logger.debug("Couldn't transform original 4 pts")
+        im_original_2 = im2
+
+    if transformed_pts is not None:
+        import pylab as plt
+        fig = plt.figure()
+        axes = fig.add_subplot(111)
+        axes.imshow(im2)
+        axes.scatter(*zip(*transformed_pts), s=5, c='b')
+        import io
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        from PIL import Image
+        im_original_2 = np.array(Image.open(buf))
+
+        buf.close()
+        plt.close()
+
+    # ******************** Image 4: Transformed overlay
     # Warp the first image onto the second image
     im_warp = cv2.warpPerspective(im1, H, (im2.shape[1],im2.shape[0]))
 
@@ -251,7 +291,7 @@ def match(im1, kp1, des1, im2, kp2, des2):
     overlay_mask = (im_warp != 0)
 
     # Create a copy of the second image
-    im_overlay = im2
+    im_overlay = im2.copy()
 
     # Overlay the warped image on top of the 2nd image
     # If the mask is grayscale the overlay will only be applied to the red channel
@@ -260,7 +300,10 @@ def match(im1, kp1, des1, im2, kp2, des2):
     else:
         im_overlay[overlay_mask, 0] = im_warp[overlay_mask]
 
-    return Match(None, good_matches, H, mask, im_matches, im_overlay, original_moments, transformed_moments, hu_distance, isConvex)
+    # End of image results
+    im_result = (ImageInfo(im_all_lines, "All Lines", "all-lines"), ImageInfo(im_inliers, "Inliers Only", "inliers"), ImageInfo(im_original, "Original 4 Points", "orig-4"), ImageInfo(im_overlay, "Overlay", "overlay-warp"), ImageInfo(im_original_2, "4 points 2", ""))
+
+    return Match(None, good_matches, ransac_results, im_result, original_moments, transformed_moments, hu_distance, isConvex)
 
 def match_region_nissl(im_region, nissl_level):
     kp1, des1 = extract_sift(im_region)
@@ -268,7 +311,7 @@ def match_region_nissl(im_region, nissl_level):
     kp2, des2 = nissl_load_sift(nissl_level)
     im_nissl = nissl_load(nissl_level)
 
-    m = match(im_region, kp1, des1, im_nissl, kp2, des2)
+    m = match(im_region, kp1, des1, im_nissl, kp2, des2, nissl_level)
     if m is None:
         return None
     else:
@@ -277,11 +320,11 @@ def match_region_nissl(im_region, nissl_level):
         return m
 
 def match_sift_nissl(im_region, kp1, des1, nissl_level):
-    logger.debug("=============== Matching {0}", nissl_level)
+    logger.debug("{0} Matching {1}", "="*75, nissl_level)
     kp2, des2 = nissl_load_sift(nissl_level)
     im_nissl = nissl_load(nissl_level)
 
-    m = match(im_region, kp1, des1, im_nissl, kp2, des2)
+    m = match(im_region, kp1, des1, im_nissl, kp2, des2, nissl_level)
 
     if m is None:
         return None

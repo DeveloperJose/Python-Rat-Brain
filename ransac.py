@@ -1,8 +1,5 @@
 import numpy as np
-import scipy # use numpy if scipy unavailable
-import scipy.linalg # use numpy if scipy unavailable
 import cv2
-import homography
 
 import config
 import sys
@@ -10,28 +7,39 @@ import logbook
 logger = logbook.Logger(__name__)
 logbook.StreamHandler(sys.stdout, level=logbook.DEBUG, format_string=config.LOGGER_FORMAT_STRING).push_application()
 
-def ransac(src_pts, dst_pts, corners, threshold=500,max_iters=1000):
+def ransac(src_pts, dst_pts, corners, threshold=500,max_iters=1500):
     # Keep track of our best results
     best_homography = None
     best_inliers_count = 0
     best_inliers_mask = None
+    best_inliers_original = None
+    best_total_error = sys.maxsize
+
+    debug_min_error = sys.maxsize
+    debug_max_error = -1
 
     count_non_convex = 0
     count_bad_homography = 0
+
+    total_pts = src_pts.shape[0]
 
     # Loop for the specified iterations
     # You could also do it using time
     iterations = 0
     while iterations < max_iters:
         # Get all the indices as a mask of booleans
-        inliers = np.full(src_pts.shape[0], False, np.bool)
+        inliers = np.full(total_pts, False, np.bool)
 
         # Randomly get 4 indices for points
         # No duplicates are allowed
-        rand_indices = np.random.choice(src_pts.shape[0], 4, replace=False)
+        rand_indices = np.random.choice(total_pts, 4, replace=False)
 
         # They are inliers, naturally
         inliers[rand_indices] = True
+
+        # Original 4 points for storage
+        # Make sure it's a copy or we get in trouble with references
+        original_pts = inliers.copy()
 
         # Get the points
         rand_src = src_pts[inliers]
@@ -62,38 +70,80 @@ def ransac(src_pts, dst_pts, corners, threshold=500,max_iters=1000):
 
         # Part 2: Get the inliers and outliers
         # Get the remaining points
-        rem_src = src_pts[~inliers]
-        rem_dst = dst_pts[~inliers]
-
-        # Get the error for each point
+        rem_src = src_pts[:]
+        rem_dst = dst_pts[:]
         rem_src_hom = cv2.convertPointsToHomogeneous(rem_src)
         rem_dst_hom = cv2.convertPointsToHomogeneous(rem_dst)
 
+        import pdb
+        pdb.set_trace()
+        # Calculate the reprojection error
         calc = rem_dst_hom - (H * rem_src_hom)
         error = np.linalg.norm(calc, axis=(1, 2))
-        error_mask = error < threshold
+
+        src = src_pts[rand_indices[0]]
+        dst = dst_pts[rand_indices[0]]
+        src_h = np.append(src, 1)
+        dst_h = np.append(dst, 1)
+        err = np.linalg.norm(dst - cv2.convertPointsFromHomogeneous(np.array([np.dot(H, src_h)])))
+
+        # dot = np.sum(a * b, axis=1)
+        dot_prod = np.sum(H * rem_src_hom, axis=2)
+        dot_prod_hom = cv2.convertPointsFromHomogeneous(dot_prod).reshape(total_pts, 2)
+        difference = rem_dst - dot_prod_hom
+
+        import pdb
+        pdb.set_trace()
+
+        # Debug information to see the range of error
+        debug_min_error = min(error.min(), debug_min_error)
+        debug_max_error = max(error.max(), debug_max_error)
 
         # Get the inliers from the points whose error is lower than the threshold
-        inliers[~inliers] = error_mask
+        error_mask = error < threshold
+        #inliers[~inliers] = error_mask
+        inliers = error_mask
 
-        #import pdb
-        #pdb.set_trace()
+        # Sum all the errors to find the total error
+        total_error = error[error_mask].sum()
 
-        # Compare inlier counts
+        # Update the homography using the inliers as well
+        update_inliers = inliers.copy()
+
+        # Update the homography with the new set of inliers
+        new_src = src_pts[update_inliers]
+        new_dst = dst_pts[update_inliers]
+
+        H, mask = cv2.findHomography(new_src, new_dst, method=0)
+
+        # Check if the homography is valid after calculating it again
+        if H is None or len(H.shape) != 2:
+            iterations+=1
+            count_bad_homography+=1
+            continue
+
+        # Compare inlier counts to update our best model
         if np.sum(inliers) > best_inliers_count:
             best_homography = H
             best_inliers_mask = inliers
             best_inliers_count = np.sum(inliers)
+            best_inliers_original = original_pts
+            best_total_error = total_error
 
         # Update iteration count
         iterations+=1
 
     # End of RANSAC loop
-    logger.debug("[Ransac] Finished iterations. Total {0}, Bad H {1}, Non Convex {2}", iterations, count_bad_homography, count_non_convex)
+    logger.debug("[Ransac] Finished iterations. Total {0}, Bad H {1}, Non Convex {2}, Decent {3}", iterations, count_bad_homography, count_non_convex, iterations-count_bad_homography-count_non_convex)
 
-    logger.debug("Inliers: {0}", best_inliers_count)
-
-    return best_homography, best_inliers_mask
+    return {"homography": best_homography,
+            "inlier_mask": best_inliers_mask,
+            "inlier_count": best_inliers_count,
+            "original_inlier_mask": best_inliers_original,
+            "total_error": best_total_error,
+            "min_error": debug_min_error,
+            "max_error": debug_max_error
+            }
 
 if __name__ == '__main__':
     import feature
