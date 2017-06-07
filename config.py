@@ -9,8 +9,8 @@ ATLAS = "SWANSON"
 NISSL_EXT = ".jpg"
 
 if (ATLAS == "SWANSON"):
-    #NISSL_DEFAULT_FILE = 'C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region.jpg'
-    NISSL_DEFAULT_FILE = 'C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region-34.jpg'
+    NISSL_DEFAULT_FILE = 'C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region.jpg'
+    #NISSL_DEFAULT_FILE = 'C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region-34.jpg'
     NISSL_DIR = "atlas_swanson"
     NISSL_PREFIX = "Level-"
     NISSL_DIGITS = 2
@@ -59,7 +59,7 @@ SIFT_SIGMA = 2
 # Should multithreading be used when matching?
 # If True, the debug logs will not be in sequential order
 # It's harder to debug using PDB as well
-MULTITHREAD = False
+MULTITHREAD = True
 
 # The formatting string that will be used by the loggers
 LOGGER_FORMAT_STRING = (
@@ -83,6 +83,7 @@ UI_SHOW_KP = False
 # Should we save the region you select in the program?
 UI_SAVE_REGION = False
 
+# Should we save the results when they are selected?
 UI_SAVE_RESULTS = False
 
 # Should feature matching use the FLANN KDTree approach?
@@ -93,7 +94,7 @@ MATCH_WITH_FLANN = True
 MIN_MATCH_COUNT = 10
 
 # Neighbor distance ratio for the ratio test as per Lowe's SIFT paper
-DISTANCE_RATIO = 1
+DISTANCE_RATIO = 0.8
 
 # The color of the rectangle overlayed in the matching
 MATCH_RECT_COLOR = (0, 255, 255)

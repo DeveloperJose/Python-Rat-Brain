@@ -7,6 +7,22 @@ import logbook
 logger = logbook.Logger(__name__)
 logbook.StreamHandler(sys.stdout, level=logbook.DEBUG, format_string=config.LOGGER_FORMAT_STRING).push_application()
 
+def calc_reproj_error(H, src_pts, dst_pts):
+    # How many points are there in total?
+    total_pts = src_pts.shape[0]
+
+    # Convert the source points to homogeneous coordinates
+    # This is so we can multiply a (2x2) point with a (3x3) matrix
+    src_pts_hom = cv2.convertPointsToHomogeneous(src_pts)
+
+    # Calculate the reprojection error
+    dot_prod = np.sum(H * src_pts_hom, axis=2)
+    dot_prod_hom = cv2.convertPointsFromHomogeneous(dot_prod).reshape(total_pts, 2)
+    difference = dst_pts - dot_prod_hom
+    error = np.linalg.norm(difference, axis=1)
+
+    return error
+
 def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
     # Keep track of our best results
     best_homography = None
@@ -70,15 +86,8 @@ def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
 
         # Part 2: Get the inliers and outliers
 
-        # Convert the source points to homogeneous coordinates
-        # This is so we can multiply a (2x2) point with a (3x3) matrix
-        src_pts_hom = cv2.convertPointsToHomogeneous(src_pts)
-
-        # Calculate the reprojection error
-        dot_prod = np.sum(H * src_pts_hom, axis=2)
-        dot_prod_hom = cv2.convertPointsFromHomogeneous(dot_prod).reshape(total_pts, 2)
-        difference = dst_pts - dot_prod_hom
-        error = np.linalg.norm(difference, axis=1)
+        # First calculate the reprojection error
+        error = calc_reproj_error(H, src_pts, dst_pts)
 
         # Debug information to see the range of error
         debug_min_error = min(error.min(), debug_min_error)
@@ -87,7 +96,6 @@ def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
 
         # Get the inliers from the points whose error is lower than the threshold
         error_mask = error < threshold
-        #inliers[~inliers] = error_mask
         inliers = error_mask
 
         # Sum all the errors to find the total error
@@ -107,6 +115,12 @@ def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
             iterations+=1
             count_bad_homography+=1
             continue
+
+        # Calculate the new error
+        new_error = calc_reproj_error(H, src_pts, dst_pts)
+        mask = new_error < threshold
+        inliers = mask
+        #total_error = new_error[mask].sum()
 
         # Compare inlier counts to update our best model
         if np.sum(inliers) > best_inliers_count:

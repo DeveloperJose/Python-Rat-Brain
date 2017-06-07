@@ -12,7 +12,7 @@ import logbook
 logger = logbook.Logger(__name__)
 
 # ****************************** SIFT Parameters
-SIFT = cv2.xfeatures2d.SIFT_create(nfeatures=3, contrastThreshold=config.SIFT_CONTRAST_THRESHOLD, edgeThreshold=config.SIFT_EDGE_THRESHOLD, sigma=config.SIFT_SIGMA)
+SIFT = cv2.xfeatures2d.SIFT_create(contrastThreshold=config.SIFT_CONTRAST_THRESHOLD, edgeThreshold=config.SIFT_EDGE_THRESHOLD, sigma=config.SIFT_SIGMA)
 
 # ****************************** Matcher Parameters
 FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PARAMS)
