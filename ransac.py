@@ -7,7 +7,7 @@ import logbook
 logger = logbook.Logger(__name__)
 logbook.StreamHandler(sys.stdout, level=logbook.DEBUG, format_string=config.LOGGER_FORMAT_STRING).push_application()
 
-def ransac(src_pts, dst_pts, corners, threshold=500,max_iters=1500):
+def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
     # Keep track of our best results
     best_homography = None
     best_inliers_count = 0
@@ -16,7 +16,7 @@ def ransac(src_pts, dst_pts, corners, threshold=500,max_iters=1500):
     best_total_error = sys.maxsize
 
     debug_min_error = sys.maxsize
-    debug_max_error = -1
+    debug_max_error = 0
 
     count_non_convex = 0
     count_bad_homography = 0
@@ -69,35 +69,21 @@ def ransac(src_pts, dst_pts, corners, threshold=500,max_iters=1500):
             continue
 
         # Part 2: Get the inliers and outliers
-        # Get the remaining points
-        rem_src = src_pts[:]
-        rem_dst = dst_pts[:]
-        rem_src_hom = cv2.convertPointsToHomogeneous(rem_src)
-        rem_dst_hom = cv2.convertPointsToHomogeneous(rem_dst)
 
-        import pdb
-        pdb.set_trace()
+        # Convert the source points to homogeneous coordinates
+        # This is so we can multiply a (2x2) point with a (3x3) matrix
+        src_pts_hom = cv2.convertPointsToHomogeneous(src_pts)
+
         # Calculate the reprojection error
-        calc = rem_dst_hom - (H * rem_src_hom)
-        error = np.linalg.norm(calc, axis=(1, 2))
-
-        src = src_pts[rand_indices[0]]
-        dst = dst_pts[rand_indices[0]]
-        src_h = np.append(src, 1)
-        dst_h = np.append(dst, 1)
-        err = np.linalg.norm(dst - cv2.convertPointsFromHomogeneous(np.array([np.dot(H, src_h)])))
-
-        # dot = np.sum(a * b, axis=1)
-        dot_prod = np.sum(H * rem_src_hom, axis=2)
+        dot_prod = np.sum(H * src_pts_hom, axis=2)
         dot_prod_hom = cv2.convertPointsFromHomogeneous(dot_prod).reshape(total_pts, 2)
-        difference = rem_dst - dot_prod_hom
-
-        import pdb
-        pdb.set_trace()
+        difference = dst_pts - dot_prod_hom
+        error = np.linalg.norm(difference, axis=1)
 
         # Debug information to see the range of error
         debug_min_error = min(error.min(), debug_min_error)
-        debug_max_error = max(error.max(), debug_max_error)
+        #debug_max_error = max(error.max(), debug_max_error)
+        debug_max_error = (debug_max_error + np.average(error)) / 2
 
         # Get the inliers from the points whose error is lower than the threshold
         error_mask = error < threshold
