@@ -42,9 +42,10 @@ class Match(object):
         self.matches_count = len(matches)
         self.inlier_ratio = self.inlier_count / self.matches_count * 100
 
-        self.homography_det = abs(np.linalg.det(self.H))
-        self.svd = np.linalg.svd(self.H, compute_uv=False)
-        self.cond_num = int(self.svd[0] / self.svd[-1])
+        self.homography_det = np.linalg.det(self.H)
+        self.cond_num = np.linalg.cond(self.H)
+
+        self.topleft_det = np.linalg.det(self.H[0:2, 0:2])
 
     def comparison_key(self):
         return self.inlier_count
@@ -60,13 +61,11 @@ class Match(object):
             "{0:.1f}".format(self.inlier_ratio),
             str(self.cond_num),
             str(self.homography_det),
-            str(self.original_moments['m00']),
-            str(self.transformed_moments['m00']),
             str(self.hu_dist),
             str(self.isConvex),
             str(self.ransac_results["total_error"]),
-            str(self.ransac_results["min_error"]),
-            str(self.ransac_results["max_error"])
+            str(self.ransac_results["max_error"]),
+            str(self.topleft_det)
             ])
 
 def warp(im, points, disp_min, disp_max, disp_len = None, disp_angle = None):

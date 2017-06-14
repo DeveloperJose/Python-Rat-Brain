@@ -13,7 +13,7 @@ class ResultsDialog(QDialog):
 
         self.filename = filename
         self.matches = matches
-        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'H Cond #', 'Det H', 'Orig Area', 'Trans Area', 'Hu Dist', 'Convex?', "Total Error", "Min Error", "Max Error"]
+        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'H Cond #', 'Det H', 'Hu Dist', 'Convex?', "Total Error", "Avg Error", 'TL Det']
 
         layout = QVBoxLayout()
 
