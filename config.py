@@ -33,6 +33,8 @@ ALLOW_NON_CONVEX_CORNERS = False
 # Moments larger than the threshold will be discarded
 HU_DISTANCE_THRESHOLD = 2e100
 
+NEW_RANSAC = True
+
 # Default: 50 (Regions)
 # The higher the threshold, the lower the inliers
 RANSAC_REPROJ_TRESHHOLD = 10

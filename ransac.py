@@ -116,6 +116,9 @@ def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
             count_bad_homography+=1
             continue
 
+        #import pdb
+        #pdb.set_trace()
+
         # Calculate the new error
         new_error = calc_reproj_error(H, src_pts, dst_pts)
         mask = new_error < threshold

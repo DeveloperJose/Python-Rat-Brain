@@ -25,6 +25,24 @@ class ImageInfo(object):
         self.filename = filename
 
 class Match(object):
+    def unit_vector(self, vector):
+        """ Returns the unit vector of the vector.  """
+        return vector / np.linalg.norm(vector)
+
+    def angle_between(self, v1, v2):
+        """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+                >>> angle_between((1, 0, 0), (0, 1, 0))
+                1.5707963267948966
+                >>> angle_between((1, 0, 0), (1, 0, 0))
+                0.0
+                >>> angle_between((1, 0, 0), (-1, 0, 0))
+                3.141592653589793
+        """
+        v1_u = self.unit_vector(v1)
+        v2_u = self.unit_vector(v2)
+        return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
     def __init__(self, nissl_level, matches, ransac_results, im_results, original_moments, transformed_moments, hu_dist, isConvex):
         self.nissl_level = nissl_level
         self.matches = matches
@@ -47,6 +65,13 @@ class Match(object):
 
         self.topleft_det = np.linalg.det(self.H[0:2, 0:2])
 
+        self.vec1 = self.H[0][0:2]
+        self.vec2 = self.H[1][0:2]
+
+        self.vec1_mag = np.linalg.norm(self.vec1)
+        self.vec2_mag = np.linalg.norm(self.vec2)
+        self.angle = np.rad2deg(self.angle_between(self.vec1, self.vec2))
+
     def comparison_key(self):
         return self.inlier_count
         #return self.inlier_count
@@ -59,13 +84,16 @@ class Match(object):
             str(self.matches_count),
             str(self.inlier_count),
             "{0:.1f}".format(self.inlier_ratio),
-            str(self.cond_num),
-            str(self.homography_det),
-            str(self.hu_dist),
-            str(self.isConvex),
-            str(self.ransac_results["total_error"]),
-            str(self.ransac_results["max_error"]),
-            str(self.topleft_det)
+            str(self.vec1_mag),
+            str(self.vec2_mag),
+            str(self.angle)
+            #str(self.cond_num),
+            #str(self.homography_det),
+            #str(self.hu_dist),
+            #str(self.isConvex),
+            #str(self.ransac_results["total_error"]),
+            #str(self.ransac_results["max_error"]),
+            #str(self.topleft_det)
             ])
 
 def warp(im, points, disp_min, disp_max, disp_len = None, disp_angle = None):
@@ -184,16 +212,22 @@ def match(im1, kp1, des1, im2, kp2, des2, plate=None):
     h, w = im1.shape[:2]
     corners = np.float32([[0, 0], [0, h-1], [w-1, h-1], [w-1, 0]]).reshape(-1, 1, 2)
 
-    # Calculate the homography using RANSAC
-    #H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
+    if config.NEW_RANSAC:
+        import ransac
+        ransac_results = ransac.ransac(src_pts, dst_pts, corners)
+        H = ransac_results["homography"]
 
-    import ransac
-    ransac_results = ransac.ransac(src_pts, dst_pts, corners)
-    H = ransac_results["homography"]
-
-    #if plate == 34:
-    #    import pdb
-    #    pdb.set_trace()
+    else:
+        # Calculate the homography using RANSAC
+        H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=config.RANSAC_REPROJ_TRESHHOLD, maxIters=config.RANSAC_MAX_ITERS, confidence=config.RANSAC_CONFIDENCE)
+        ransac_results =  {"homography": H,
+                            "inlier_mask": mask,
+                            "inlier_count": mask.ravel().sum(),
+                            "original_inlier_mask": None,
+                            "total_error": -1,
+                            "min_error": -1,
+                            "max_error": -1
+                            }
 
     # Check homography validity
     if H is None or len(H.shape) != 2:
