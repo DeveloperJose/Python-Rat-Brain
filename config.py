@@ -9,8 +9,8 @@ ATLAS = "SWANSON"
 NISSL_EXT = ".jpg"
 
 if (ATLAS == "SWANSON"):
-    #NISSL_DEFAULT_FILE = 'C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region.jpg'
-    NISSL_DEFAULT_FILE = 'C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region-34.jpg'
+    NISSL_DEFAULT_FILE = 'C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region.jpg'
+    #NISSL_DEFAULT_FILE = 'C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region-34.jpg'
     NISSL_DIR = "atlas_swanson"
     NISSL_PREFIX = "Level-"
     NISSL_DIGITS = 2

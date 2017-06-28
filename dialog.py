@@ -10,12 +10,13 @@ class ResultsDialog(QDialog):
         super(ResultsDialog, self).__init__(parent)
 
         self.setWindowTitle("Results for " + filename)
-        self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
+        #self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
 
         self.filename = filename
         self.matches = matches
         #self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'H Cond #', 'Det H', 'Hu Dist', 'Convex?', "Total Error", "Avg Error", 'TL Det']
-        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'Mag1', 'Mag2', 'Angle']
+        #self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'Mag1', 'Mag2', 'Angle', 'Cond']
+        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Linear', 'm0', 'm1', 'm2', 'm3']
 
         layout = QVBoxLayout()
 

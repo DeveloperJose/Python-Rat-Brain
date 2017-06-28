@@ -72,21 +72,34 @@ class Match(object):
         self.vec2_mag = np.linalg.norm(self.vec2)
         self.angle = np.rad2deg(self.angle_between(self.vec1, self.vec2))
 
-    def comparison_key(self):
-        return self.inlier_count
-        #return self.inlier_count
-        #return -((1/self.inlier_ratio) * (self.svd_ratio) * self.homography_det * self.dist)
+        self.vec_arr = np.array([[self.H[0][0], self.H[0][1]], [self.H[1][0], self.H[1][1]]])
+        self.vec_arr_cond = np.linalg.cond(self.vec_arr)
 
-    # "{0:.8f}".format
+        # Linear combination
+        self.a0 = (self.inlier_count/1000)
+        self.a1 = (self.inlier_count/self.matches_count)
+        self.a2 = min(self.vec1_mag/self.vec2_mag, self.vec2_mag/self.vec1_mag)
+        self.a3 = np.abs(np.sin(self.angle))
+        self.linear = ransac_results['metric']
+
+    def comparison_key(self):
+        return self.linear
+
     def to_string_array(self):
         return np.array([
             "Plate #" + str(self.nissl_level),
             str(self.matches_count),
             str(self.inlier_count),
-            "{0:.1f}".format(self.inlier_ratio),
-            str(self.vec1_mag),
-            str(self.vec2_mag),
-            str(self.angle)
+            #"{0:.1f}".format(self.inlier_ratio),
+            str(self.linear),
+            str(self.a0),
+            str(self.a1),
+            str(self.a2),
+            str(self.a3)
+            #str(self.vec1_mag),
+            #str(self.vec2_mag),
+            #str(self.angle),
+            #str(self.vec_arr_cond)
             #str(self.cond_num),
             #str(self.homography_det),
             #str(self.hu_dist),
