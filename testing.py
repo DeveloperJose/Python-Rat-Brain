@@ -29,7 +29,7 @@ def draw_kp(im):
 
 
 def match(im):
-    atlas = feature.im_read('scripts_testing/plate-34.jpg')
+    atlas = feature.im_read('atlas_swanson/Level-33.jpg')
 
     if affine:
         kp, des = feature.extract_sift(im)
@@ -42,13 +42,13 @@ def match(im):
     print("Matches: ", len(match.matches))
     print("Inliers: ", match.inlier_count)
 
-    #for im_info in match.im_results:
-    #     plt.figure(figsize=(10,10))
-    #     plt.imshow(im_info.im)
+    for im_info in match.im_results:
+         plt.figure(figsize=(10,10))
+         plt.imshow(im_info.im)
 
     return match.H
 
-filename = 'scripts_testing/region-34.jpg'
+filename = 'scripts_testing/region.jpg'
 im_region = feature.im_read(filename)
 im_region_gray = feature.im_read(filename, flags=cv2.IMREAD_GRAYSCALE)
 
@@ -62,7 +62,7 @@ im_region_gray = feature.im_read(filename, flags=cv2.IMREAD_GRAYSCALE)
 #dst = cv2.filter2D(im_region,-1,kernel)
 
 affine = True
-draw_kp(feature.im_read('scripts_testing/region-34.jpg'))
+#draw_kp(feature.im_read('scripts_testing/region-34.jpg'))
 draw_kp(im_region)
 
 timing.stopwatch()

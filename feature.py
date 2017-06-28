@@ -95,7 +95,7 @@ class Match(object):
             str(self.a0),
             str(self.a1),
             str(self.a2),
-            str(self.a3)
+            str(self.a3),
             #str(self.vec1_mag),
             #str(self.vec2_mag),
             #str(self.angle),
@@ -104,8 +104,10 @@ class Match(object):
             #str(self.homography_det),
             #str(self.hu_dist),
             #str(self.isConvex),
-            #str(self.ransac_results["total_error"]),
-            #str(self.ransac_results["max_error"]),
+            str(self.ransac_results["total_error"]),
+            str(self.ransac_results["avg_error"]),
+            str(self.ransac_results["min_error"]),
+            str(self.ransac_results["max_error"]),
             #str(self.topleft_det)
             ])
 
@@ -436,6 +438,7 @@ def affine_detect(detector, img, mask=None, pool=None):
     '''
     params = [(1.0, 0.0)]
     for t in 2**(0.5*np.arange(1,6)):
+        #for phi in np.arange(0, 180, 72.0 / t):
         for phi in np.arange(0, 180, 72.0 / t):
             params.append((t, phi))
 

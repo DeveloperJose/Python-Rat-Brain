@@ -86,7 +86,7 @@ UI_SHOW_KP = False
 UI_SAVE_REGION = False
 
 # Should we save the results when they are selected?
-UI_SAVE_RESULTS = False
+UI_SAVE_RESULTS = True
 
 # Should feature matching use the FLANN KDTree approach?
 # If false, feature matching will be with BruteForce

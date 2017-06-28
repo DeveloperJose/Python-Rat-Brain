@@ -13,7 +13,6 @@ def unit_vector(vector):
 
 def angle_between(v1, v2):
     """ Returns the angle in radians between vectors 'v1' and 'v2'::
-
             >>> angle_between((1, 0, 0), (0, 1, 0))
             1.5707963267948966
             >>> angle_between((1, 0, 0), (1, 0, 0))
@@ -73,17 +72,20 @@ def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
     best_inliers_original = None
     best_total_error = sys.maxsize
 
+    # Debug information
     debug_min_error = sys.maxsize
     debug_max_error = 0
 
+    # Looping variables
     count_non_convex = 0
     count_bad_homography = 0
+    iterations = 0
 
+    # Constants
     total_pts = src_pts.shape[0]
 
     # Loop for the specified iterations
     # You could also do it using time
-    iterations = 0
     while iterations < max_iters:
         # Get all the indices as a mask of booleans
         inliers = np.full(total_pts, False, np.bool)
@@ -129,44 +131,41 @@ def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
         # Part 2: Get the inliers and outliers
         for i in range(5):
             H_2, inliers_2, error_2, total_error_2 = calc_new_homography(H, src_pts, dst_pts, threshold)
-            if H_2 is None:
-                iterations+=1
-                count_bad_homography+=1
-                continue
-            else:
-                H = H_2
-                inliers = inliers_2
-                error = error_2
-                total_error = total_error_2
 
-        # Debug information to see the range of error
-        debug_min_error = min(error.min(), debug_min_error)
-        debug_max_error = max(error.max(), debug_max_error)
-        debug_max_error = (debug_max_error + np.average(error)) / 2
+            if H_2 is not None:
+                # Linear combination
+                vec1 = H_2[0][0:2]
+                vec2 = H_2[1][0:2]
+                vec1_mag = np.linalg.norm(vec1)
+                vec2_mag = np.linalg.norm(vec2)
+                angle = np.rad2deg(angle_between(vec1, vec2))
+                inlier_count = np.sum(inliers_2)
 
-        # Linear combination
-        vec1 = H[0][0:2]
-        vec2 = H[1][0:2]
-        vec1_mag = np.linalg.norm(vec1)
-        vec2_mag = np.linalg.norm(vec2)
-        angle = np.rad2deg(angle_between(vec1, vec2))
-        inlier_count = np.sum(inliers)
+                m0 = 0.25 * (inlier_count/1000)
+                m1 = 0.4 * (inlier_count/total_pts)
+                m2 = 0.15 * min(vec1_mag/vec2_mag, vec2_mag/vec1_mag)
+                m3 = 0.2 * np.abs(np.sin(angle))
+                linear = m0 + m1 + m2 + m3
 
-        m0 = 0.4 * (inlier_count/1000)
-        m1 = 0.2 * (inlier_count/total_pts)
-        m2 = 0.2 * min(vec1_mag/vec2_mag, vec2_mag/vec1_mag)
-        m3 = 0.2 * np.abs(np.sin(angle))
-        linear = m0 + m1 + m2 + m3
+                # Compare inlier counts to update our best model
+                #if np.sum(inliers) > best_inliers_count:
+                if linear > best_comparison_metric:
+                    H = H_2
+                    inliers = inliers_2
+                    error = error_2
+                    total_error = total_error_2
 
-        # Compare inlier counts to update our best model
-        #if np.sum(inliers) > best_inliers_count:
-        if linear > best_comparison_metric:
-            best_comparison_metric = linear
-            best_homography = H
-            best_inliers_mask = inliers
-            best_inliers_count = np.sum(inliers)
-            best_inliers_original = original_pts
-            best_total_error = total_error
+                    best_comparison_metric = linear
+                    best_homography = H
+                    best_inliers_mask = inliers
+                    best_inliers_count = np.sum(inliers)
+                    best_inliers_original = original_pts
+                    best_total_error = total_error
+
+                    # Debug information to see the range of error
+                    debug_min_error = min(error.min(), debug_min_error)
+                    debug_max_error = max(error.max(), debug_max_error)
+                    debug_avg_error = (np.average(error))
 
         # Update iteration count
         iterations+=1
@@ -182,6 +181,7 @@ def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
             'metric': best_comparison_metric,
             "min_error": debug_min_error,
             "max_error": debug_max_error,
+            "avg_error": debug_avg_error
             }
 
 if __name__ == '__main__':
