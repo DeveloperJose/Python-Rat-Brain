@@ -47,21 +47,29 @@ RANSAC_CONFIDENCE = 0.99
 
 # Default: 0.08 (Regions)
 # The larger the threshold, the less features are produced by the detector.
-SIFT_CONTRAST_THRESHOLD = 0.07
+SIFT_CONTRAST_THRESHOLD = 0.1
 
 # Default: 30 (Regions)
 # The larger the threshold, the more features that are retained
-SIFT_EDGE_THRESHOLD = 30
+SIFT_EDGE_THRESHOLD = 50
 
 # Default: 2 (Regions)
 # Sigma of Gaussian used by SIFT
 # Reduce for images captured by a weak camera with soft lenses
 SIFT_SIGMA = 2
 
+SIFT_FEATURES = 0
+SIFT_OCTAVE_LAYERS = 2
+USE_AFFINE = False
+
+ASIFT_START = 0
+ASIFT_END = 180
+ASIFT_INC = 20.0
+
 # Should multithreading be used when matching?
 # If True, the debug logs will not be in sequential order
 # It's harder to debug using PDB as well
-MULTITHREAD = True
+MULTITHREAD = False
 
 # The formatting string that will be used by the loggers
 LOGGER_FORMAT_STRING = (

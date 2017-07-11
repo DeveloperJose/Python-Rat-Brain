@@ -12,7 +12,7 @@ import logbook
 logger = logbook.Logger(__name__)
 
 # ****************************** SIFT Parameters
-SIFT = cv2.xfeatures2d.SIFT_create(contrastThreshold=config.SIFT_CONTRAST_THRESHOLD, edgeThreshold=config.SIFT_EDGE_THRESHOLD, sigma=config.SIFT_SIGMA)
+SIFT = cv2.xfeatures2d.SIFT_create(nfeatures=config.SIFT_FEATURES, nOctaveLayers=config.SIFT_OCTAVE_LAYERS, contrastThreshold=config.SIFT_CONTRAST_THRESHOLD, edgeThreshold=config.SIFT_EDGE_THRESHOLD, sigma=config.SIFT_SIGMA)
 
 # ****************************** Matcher Parameters
 FLANN = cv2.FlannBasedMatcher(config.FLANN_INDEX_PARAMS, config.FLANN_SEARCH_PARAMS)
@@ -198,6 +198,8 @@ def nissl_load_sift(nissl_level):
         logger.debug("Resized region from {0} to {1}", old_shape, nissl.shape)
 
         kp, des = extract_sift(nissl)
+        #import pdb
+        #pdb.set_trace()
         temp = pickle_sift(kp, des)
         pickle.dump(temp, open(path, "wb"))
         return kp, des
@@ -387,15 +389,18 @@ def extract_sift(im):
     if len(im.shape) == 3:
         im = cv2.cvtColor(im, cv2.COLOR_RGB2GRAY)
 
-    # Use multithreading to split the affine detection work
-    pool = ThreadPool(processes = cv2.getNumberOfCPUs())
-
-    kp, des = affine_detect(SIFT, im, pool=pool)
-
-    pool.close()
-    pool.join()
-
-    return kp, des
+    if config.USE_AFFINE:
+        # Use multithreading to split the affine detection work
+        if config.MULTITHREAD:
+            pool = ThreadPool(processes = cv2.getNumberOfCPUs())
+            kp, des = affine_detect(SIFT, im, pool=pool)
+            pool.close()
+            pool.join()
+            return kp, des
+        else:
+            return affine_detect(SIFT, im)
+    else:
+        return SIFT.detectAndCompute(im, None)
 
 
 def affine_skew(tilt, phi, img, mask=None):
@@ -439,18 +444,28 @@ def affine_detect(detector, img, mask=None, pool=None):
     params = [(1.0, 0.0)]
     for t in 2**(0.5*np.arange(1,6)):
         #for phi in np.arange(0, 180, 72.0 / t):
-        for phi in np.arange(0, 180, 72.0 / t):
+        for phi in np.arange(config.ASIFT_START, config.ASIFT_END, config.ASIFT_INC / t):
             params.append((t, phi))
 
     def f(p):
         t, phi = p
         timg, tmask, Ai = affine_skew(t, phi, img)
-        keypoints, descrs = detector.detectAndCompute(timg, tmask)
+        keypoints = detector.detect(timg, tmask)
+
+        #import pdb
+        #pdb.set_trace()
+        # Filter keypoints
+        keypoints = [k for k in keypoints if k.response > 0.085]
+
+        descrs = detector.compute(timg, keypoints)
+        #import pdb
+        #pdb.set_trace()
         for kp in keypoints:
             x, y = kp.pt
             kp.pt = tuple( np.dot(Ai, (x, y, 1)) )
         if descrs is None:
-            descrs = []
+            return None, None
+
         return keypoints, descrs
 
     keypoints, descrs = [], []
@@ -464,6 +479,8 @@ def affine_detect(detector, img, mask=None, pool=None):
         keypoints.extend(k)
         descrs.extend(d)
 
+    # Clean up descriptors
+    descrs = [x for x in descrs if x is not None and len(x) > 0]
     return keypoints, np.array(descrs)
 
 # https://isotope11.com/blog/storing-surf-sift-orb-keypoints-using-opencv-in-python

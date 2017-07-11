@@ -13,30 +13,26 @@ import timing
 import logbook
 logger = logbook.Logger(__name__)
 
-sift = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.08, edgeThreshold=30, sigma=2)
+sift = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.08, edgeThreshold=30, sigma=5)
 affine = True
 
 def draw_kp(im):
-    if affine:
-        kp, des = feature.extract_sift(im)
-    else:
-        kp = sift.detect(im)
+    kp, des = feature.extract_sift(im)
+
+    #kp = [k for k in kp if k.response > 0.09]
+    #kp = [k for k in kp if k.size > 6]
 
     print("Keypoints: ", len(kp))
     im_kp = cv2.drawKeypoints(im, kp, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     plt.figure(figsize=(10,10))
     plt.imshow(im_kp)
 
+    return kp, des
 
-def match(im):
-    atlas = feature.im_read('atlas_swanson/Level-33.jpg')
 
-    if affine:
-        kp, des = feature.extract_sift(im)
-        kp2, des2 = feature.extract_sift(atlas)
-    else:
-        kp, des = sift.detectAndCompute(im, None)
-        kp2, des2 = sift.detectAndCompute(atlas, None)
+def match(im, atlas):
+    kp, des = feature.extract_sift(im)
+    kp2, des2 = feature.extract_sift(atlas)
 
     match = feature.match(im, kp, des, atlas, kp2, des2)
     print("Matches: ", len(match.matches))
@@ -52,6 +48,8 @@ filename = 'scripts_testing/region.jpg'
 im_region = feature.im_read(filename)
 im_region_gray = feature.im_read(filename, flags=cv2.IMREAD_GRAYSCALE)
 
+im_atlas = feature.im_read('atlas_swanson/Level-33.jpg')
+
 # *************** Resizing
 #im_region = misc.imresize(im_region, (170, 310))
 #im_region = misc.imresize(im_region, 10)
@@ -61,10 +59,13 @@ im_region_gray = feature.im_read(filename, flags=cv2.IMREAD_GRAYSCALE)
 #kernel = np.ones((n,n),np.float32)/(n**2)
 #dst = cv2.filter2D(im_region,-1,kernel)
 
-affine = True
 #draw_kp(feature.im_read('scripts_testing/region-34.jpg'))
-draw_kp(im_region)
+#kp, des = draw_kp(im_region)
+draw_kp(im_atlas)
+#kp_min = min(kp, key=lambda x:x.size)
+#kp_max = max(kp, key=lambda x:x.size)
+#print("Min/Max:", kp_min.size, kp_max.size)
 
-timing.stopwatch()
-H = match(im_region)
-timing.stopwatch("Matching")
+#timing.stopwatch()
+#H = match(im_region, im_atlas)
+#timing.stopwatch("Matching")
