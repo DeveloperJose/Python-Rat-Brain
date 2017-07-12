@@ -24,7 +24,8 @@ else:
 
 # Homography matrices whose determinant is lower will be discarded
 # Default: 0.001
-HOMOGRAPHY_DETERMINANT_THRESHOLD = 0.000000001
+# Disable: 0.000000001
+HOMOGRAPHY_DETERMINANT_THRESHOLD = 0.001
 
 # When transforming corners using homography, should we allow non-convex shapes?
 ALLOW_NON_CONVEX_CORNERS = False
@@ -47,16 +48,16 @@ RANSAC_CONFIDENCE = 0.99
 
 # Default: 0.08 (Regions)
 # The larger the threshold, the less features are produced by the detector.
-SIFT_CONTRAST_THRESHOLD = 0.1
+SIFT_CONTRAST_THRESHOLD = 0.08
 
 # Default: 30 (Regions)
 # The larger the threshold, the more features that are retained
-SIFT_EDGE_THRESHOLD = 50
+SIFT_EDGE_THRESHOLD = 10
 
 # Default: 2 (Regions)
 # Sigma of Gaussian used by SIFT
 # Reduce for images captured by a weak camera with soft lenses
-SIFT_SIGMA = 2
+SIFT_SIGMA = 3
 
 SIFT_FEATURES = 0
 SIFT_OCTAVE_LAYERS = 2
@@ -88,7 +89,7 @@ UI_WARP = False
 UI_ANGLE = False
 
 # Should the UI show the region keypoints?
-UI_SHOW_KP = False
+UI_SHOW_KP = True
 
 # Should we save the region you select in the program?
 UI_SAVE_REGION = False
@@ -101,10 +102,11 @@ UI_SAVE_RESULTS = True
 MATCH_WITH_FLANN = True
 
 # Number of minimum good matches needed to compare descriptors
-MIN_MATCH_COUNT = 10
+# You need at least 4 to be able to estimate a homography
+MIN_MATCH_COUNT = 4
 
 # Neighbor distance ratio for the ratio test as per Lowe's SIFT paper
-DISTANCE_RATIO = 0.8
+DISTANCE_RATIO = 0.75
 
 # The color of the rectangle overlayed in the matching
 MATCH_RECT_COLOR = (0, 255, 255)

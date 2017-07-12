@@ -9,7 +9,9 @@ logbook.StreamHandler(sys.stdout, level=logbook.DEBUG, format_string=config.LOGG
 
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
-    return vector / np.linalg.norm(vector)
+    norm = np.linalg.norm(vector)
+    u = vector / norm
+    return u
 
 def angle_between(v1, v2):
     """ Returns the angle in radians between vectors 'v1' and 'v2'::
@@ -63,7 +65,7 @@ def calc_new_homography(H, src_pts, dst_pts, threshold):
 
     return H, inliers, error, total_error
 
-def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
+def ransac(src_pts, dst_pts, corners, threshold=20,max_iters=1500):
     # Keep track of our best results
     best_comparison_metric = 0
     best_homography = None
@@ -75,6 +77,7 @@ def ransac(src_pts, dst_pts, corners, threshold=10,max_iters=1500):
     # Debug information
     debug_min_error = sys.maxsize
     debug_max_error = 0
+    debug_avg_error = 0
 
     # Looping variables
     count_non_convex = 0

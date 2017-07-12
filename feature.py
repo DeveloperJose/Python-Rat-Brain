@@ -100,14 +100,14 @@ class Match(object):
             #str(self.vec2_mag),
             #str(self.angle),
             #str(self.vec_arr_cond)
-            #str(self.cond_num),
-            #str(self.homography_det),
+            str(self.cond_num),
+            str(self.homography_det),
             #str(self.hu_dist),
             #str(self.isConvex),
-            str(self.ransac_results["total_error"]),
-            str(self.ransac_results["avg_error"]),
-            str(self.ransac_results["min_error"]),
-            str(self.ransac_results["max_error"]),
+            #str(self.ransac_results["total_error"]),
+            #str(self.ransac_results["avg_error"]),
+            #str(self.ransac_results["min_error"]),
+            #str(self.ransac_results["max_error"]),
             #str(self.topleft_det)
             ])
 
@@ -188,18 +188,18 @@ def nissl_load_sift(nissl_level):
     if not os.path.exists(path):
         logger.info("Creating SIFT for plate {0}", nissl_level)
         nissl = nissl_load(nissl_level, cv2.IMREAD_GRAYSCALE)
+
         if nissl is None:
+            logger.debug("Plate doesn't exist")
             return None
 
-        import scipy.misc as misc
-        old_shape = nissl.shape
-        reduction_percent = int(config.RESIZE_WIDTH/old_shape[0] * 100)
-        nissl = misc.imresize(nissl, reduction_percent)
-        logger.debug("Resized region from {0} to {1}", old_shape, nissl.shape)
+        #import scipy.misc as misc
+        #old_shape = nissl.shape
+        #reduction_percent = int(config.RESIZE_WIDTH/old_shape[0] * 100)
+        #nissl = misc.imresize(nissl, reduction_percent)
+        #logger.debug("Resized region from {0} to {1}", old_shape, nissl.shape)
 
         kp, des = extract_sift(nissl)
-        #import pdb
-        #pdb.set_trace()
         temp = pickle_sift(kp, des)
         pickle.dump(temp, open(path, "wb"))
         return kp, des
@@ -209,7 +209,16 @@ def nissl_load_sift(nissl_level):
         kp, des = unpickle_sift(raw_sift)
         return kp, des
 
+
 def match(im1, kp1, des1, im2, kp2, des2, plate=None):
+    if des1 is None or des2 is None:
+        logger.debug("Des1 or Des2 are empty. Cannot match")
+        return None
+
+    if len(des2) <= 1:
+        logger.debug("Des2 has 1 or no features")
+        return None
+
     if config.MATCH_WITH_FLANN:
         matches = FLANN.knnMatch(des1, des2, k=2)
     else:
@@ -252,12 +261,12 @@ def match(im1, kp1, des1, im2, kp2, des2, plate=None):
         return None
 
     # Calculate the homography determinant
-    #det = np.linalg.det(H)
+    det = np.linalg.det(H)
 
     # If it's too low for comfort, don't consider the match
-    #if abs(det) < config.HOMOGRAPHY_DETERMINANT_THRESHOLD:
-    #    logger.debug("Failed homography test")
-    #    return None
+    if abs(det) < config.HOMOGRAPHY_DETERMINANT_THRESHOLD or abs(det) > 20:
+        logger.debug("Failed homography test")
+        return None
 
     # Attempt to transform corners based on homography
     try:

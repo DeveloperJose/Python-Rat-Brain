@@ -236,10 +236,10 @@ class Prototype(QWidget):
         w, h, c = im_region.shape
 
         # Reduce the size of images to a reasonable range
-        import scipy.misc as misc
-        reduction_percent = int(config.RESIZE_WIDTH/w * 100)
-        im_region = misc.imresize(im_region, reduction_percent)
-        logger.info("Resized region to {0}", im_region.shape)
+        #import scipy.misc as misc
+        #reduction_percent = int(config.RESIZE_WIDTH/w * 100)
+        #im_region = misc.imresize(im_region, reduction_percent)
+        #logger.info("Resized region to {0}", im_region.shape)
 
         # Check if we should save the region for testing
         if config.UI_SAVE_REGION:
