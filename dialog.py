@@ -1,49 +1,62 @@
 # -*- coding: utf-8 -*-
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QAbstractItemView
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QAbstractItemView, QLabel, QHeaderView
 from PyQt5.QtCore import Qt
 
 import config
 import feature
+import PyQt5
 
 class ResultsDialog(QDialog):
     def __init__(self, filename, matches, parent=None):
         super(ResultsDialog, self).__init__(parent)
-
-        self.setWindowTitle("Results for " + filename)
-        #self.setWindowFlags(Qt.WindowCloseButtonHint | Qt.WindowMinimizeButtonHint)
-
+        # Save variables
         self.filename = filename
         self.matches = matches
-        #self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'H Cond #', 'Det H', 'Hu Dist', 'Convex?', "Total Error", "Avg Error", 'TL Det']
-        #self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Inlier Ratio', 'Mag1', 'Mag2', 'Angle', 'Cond']
-        #self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Linear', 'I/1000', 'Inl Ratio', 'min(x/y, y/x)', 'abs(sin(angle))', 'Error', 'Avg E', 'MI', 'MA']
-        self.labels = ['Plate', 'Match Count', 'Inlier Count', 'Linear', 'I/1000', 'Inl Ratio', 'min(x/y, y/x)', 'abs(sin(angle))', 'C#', 'Det']
 
+        # Set-up window
+        self.setWindowTitle("Results for " + filename)
+
+        # Set-up layout
         layout = QVBoxLayout()
+
+        # Layout is different depending on the number of matches
+        if len(matches) == 0:
+            layout.addWidget(QLabel("No matches...."))
+        else:
+           self.setup_table()
+           layout.addWidget(self.table)
+
+        self.setLayout(layout)
+
+    def setup_table(self):
+        # Extract the labels
+        self.labels = list(self.matches[0].get_results())
+
 
         self.table = QTableWidget()
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setMinimumWidth(len(self.labels) * 160 + 100)
+        self.table.setMinimumWidth(len(self.labels) * 160 + 50)
         self.table.setMinimumHeight(450)
-        self.table.setRowCount(len(matches))
+        self.table.setRowCount(len(self.matches))
         self.table.setColumnCount(len(self.labels))
         self.table.setHorizontalHeaderLabels(self.labels)
-
-        self.matches = sorted(matches, key=lambda x: x.comparison_key(), reverse=True)
-        row = 0
-        for match in self.matches:
-            string_repr = match.to_string_array()
-            for i in range(len(string_repr)):
-                self.table.setItem(row, i, QTableWidgetItem(string_repr[i]))
-
-            row += 1
-
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.table.doubleClicked.connect(self.on_double_click_table)
 
-        layout.addWidget(self.table)
-        self.setLayout(layout)
+        # Sort and show info for the matches
+        self.matches = sorted(self.matches, key=lambda x: x.comparison_key(), reverse=True)
+        row = 0
+        for row in range(len(self.matches)):
+            match = self.matches[row]
+            values = list(match.get_results().values())
+
+            for i in range(len(values)):
+                value = str(values[i])
+                item = QTableWidgetItem(value)
+                item.setTextAlignment(Qt.AlignCenter)
+                self.table.setItem(row, i, item)
 
     def on_double_click_table(self):
         # Get the rows
@@ -79,3 +92,35 @@ class ImageDialog(QDialog):
 
         self.setLayout(layout)
         self.canvas.imshow(im)
+
+def main():
+    app = PyQt5.QtWidgets.QApplication([])
+    ui = TestWidget()
+    ui.test_result_dialog()
+    app.exec()
+
+class TestWidget(PyQt5.QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super(TestWidget, self).__init__(parent)
+        self.setWindowTitle('Test')
+
+    def test_result_dialog(self):
+        import numpy as np
+        filename = 'test'
+        ransac = {"homography": np.array([[1, 2], [3, 4]]),
+                "inlier_mask": np.array([0, 0, 1, 1, 1, 1, 1]),
+                "inlier_count": 5,
+                "original_inlier_mask": None,
+                "total_error": 150.20391,
+                'metric': 102.4231,
+                "min_error": 0.000000,
+                "max_error": 500.203123,
+                "avg_error": 15.12314123
+                }
+        m0 = feature.Match(-5, np.ones(10), ransac, None, np.ones(5), np.ones(5), 100, True)
+        matches = [m0, m0, m0, m0]
+        diag = ResultsDialog(filename, matches, self)
+        diag.show()
+
+if __name__ == '__main__':
+    main()

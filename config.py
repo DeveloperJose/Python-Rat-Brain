@@ -106,7 +106,7 @@ MATCH_WITH_FLANN = True
 MIN_MATCH_COUNT = 4
 
 # Neighbor distance ratio for the ratio test as per Lowe's SIFT paper
-DISTANCE_RATIO = 0.75
+DISTANCE_RATIO = 0.9
 
 # The color of the rectangle overlayed in the matching
 MATCH_RECT_COLOR = (0, 255, 255)

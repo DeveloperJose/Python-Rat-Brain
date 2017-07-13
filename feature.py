@@ -85,31 +85,19 @@ class Match(object):
     def comparison_key(self):
         return self.linear
 
-    def to_string_array(self):
-        return np.array([
-            "Plate #" + str(self.nissl_level),
-            str(self.matches_count),
-            str(self.inlier_count),
-            #"{0:.1f}".format(self.inlier_ratio),
-            str(self.linear),
-            str(self.a0),
-            str(self.a1),
-            str(self.a2),
-            str(self.a3),
-            #str(self.vec1_mag),
-            #str(self.vec2_mag),
-            #str(self.angle),
-            #str(self.vec_arr_cond)
-            str(self.cond_num),
-            str(self.homography_det),
-            #str(self.hu_dist),
-            #str(self.isConvex),
-            #str(self.ransac_results["total_error"]),
-            #str(self.ransac_results["avg_error"]),
-            #str(self.ransac_results["min_error"]),
-            #str(self.ransac_results["max_error"]),
-            #str(self.topleft_det)
-            ])
+    def get_results(self):
+        return {
+                'Plate #': self.nissl_level,
+                'Matches': self.matches_count,
+                'Inliers': self.inlier_count,
+                'LinearComb': self.linear,
+                'Inliers/1000': self.a0,
+                'Inlier Ratio': self.a1,
+                'Min(x/y,y/x)': self.a2,
+                'abs(sin(angle))': self.a3,
+                'Cond #': self.cond_num,
+                'H Det': self.homography_det
+                }
 
 def warp(im, points, disp_min, disp_max, disp_len = None, disp_angle = None):
     h, w = im.shape[:2]
