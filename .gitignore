@@ -1,17 +1,5 @@
-# Atlas PDFs
-atlas_swanson_pdf/
-
-# Paxinos and Watson
-atlas_pw/
-
 # SIFT descriptors
 *.sift
-
-# KMeans clusters
-*.cluster
-
-# Testing images
-part.*
 
 # Spyder
 *.spyproject/
