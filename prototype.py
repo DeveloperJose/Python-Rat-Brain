@@ -31,7 +31,7 @@ class Prototype(QWidget):
         # ================================================================================
         #   Variable Setup
         # ================================================================================
-        self.nissl_filename = os.path.join(config.NISSL_DIR, config.NISSL_DEFAULT_FILE)
+        self.nissl_filename = config.NISSL_DEFAULT_FILE
 
         # ================================================================================
         #   UI Layout Preparation

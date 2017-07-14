@@ -228,7 +228,7 @@ def match(im1, kp1, des1, im2, kp2, des2, plate=None):
 
     if config.NEW_RANSAC:
         import ransac
-        ransac_results = ransac.ransac(src_pts, dst_pts, corners)
+        ransac_results = ransac.ransac(src_pts, dst_pts, corners, threshold=config.RANSAC_REPROJ_TRESHHOLD, max_iters=config.RANSAC_MAX_ITERS)
         H = ransac_results["homography"]
 
     else:
