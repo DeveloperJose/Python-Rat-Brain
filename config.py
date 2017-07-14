@@ -146,7 +146,7 @@ FLANN_SEARCH_PARAMS = dict(checks=200)
 ==================== Atlas Automatic Set-Up
 ================================================= """
 if (ATLAS.casefold == "Swanson".casefold):
-    NISSL_DEFAULT_FILE = '/dataset/testing/region-68.jpg'
+    NISSL_DEFAULT_FILE = 'dataset/testing/region-68.jpg'
     NISSL_DIR = "dataset/atlas_swanson"
     NISSL_PREFIX = "Level-"
     NISSL_DIGITS = 2
