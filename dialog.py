@@ -3,7 +3,8 @@ from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem
 from PyQt5.QtCore import Qt
 
 import config
-import feature
+import util
+import matching
 import PyQt5
 
 class ResultsDialog(QDialog):
@@ -31,7 +32,6 @@ class ResultsDialog(QDialog):
     def setup_table(self):
         # Extract the labels
         self.labels = list(self.matches[0].get_results())
-
 
         self.table = QTableWidget()
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -75,7 +75,7 @@ class ResultsDialog(QDialog):
                 # Save results if needed
                 if config.UI_SAVE_RESULTS:
                     filename = str(match.nissl_level) + '-results-' + im_info.filename
-                    feature.im_write(filename + '.jpg', im_info.im)
+                    util.im_write(filename + '.jpg', im_info.im)
 
 class ImageDialog(QDialog):
     def __init__(self, im, title, parent=None):
@@ -117,7 +117,7 @@ class TestWidget(PyQt5.QtWidgets.QWidget):
                 "max_error": 500.203123,
                 "avg_error": 15.12314123
                 }
-        m0 = feature.Match(-5, np.ones(10), ransac, None, np.ones(5), np.ones(5), 100, True)
+        m0 = matching.Match(-5, np.ones(10), ransac, None, np.ones(5), np.ones(5), 100, True)
         matches = [m0, m0, m0, m0]
         diag = ResultsDialog(filename, matches, self)
         diag.show()

@@ -4,10 +4,9 @@ from multiprocessing.pool import ThreadPool
 import numpy as np
 import cv2
 
+import sift
 import config
-import feature
-
-
+import matching
 import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -31,7 +30,7 @@ class MatchingThread(QThread):
         self.im = im
 
     def process_level(self, nissl_level):
-        match = feature.match_sift_nissl(self.im, self.kp1, self.des1, nissl_level)
+        match = matching.match_region(self.im, nissl_level, self.kp1, self.des1)
         self.updateProgress.emit(self.total)
         self.total += 1
 
@@ -57,7 +56,7 @@ class MatchingThread(QThread):
         self.total = 1
 
         # Compute SIFT for region before starting
-        self.kp1, self.des1 = feature.extract_sift(self.im)
+        self.kp1, self.des1 = sift.extract_sift(self.im)
 
         # Set multithreading if capable
         if config.MULTITHREAD:

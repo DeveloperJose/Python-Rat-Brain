@@ -1,30 +1,24 @@
 # -*- coding: utf-8 -*-
 import cv2
-import numpy as np
 import pylab as plt
 
-import scipy.ndimage.filters as filters
-import scipy.signal as signal
-import scipy.misc as misc
-
-import feature
+import util
 import timing
-
 import logbook
+import sift
+import atlas
+import matching
 logger = logbook.Logger(__name__)
-
-sift = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.08, edgeThreshold=30, sigma=5)
-affine = True
 
 def save_atlas_sift():
     for i in range(1, 71):
-        im = feature.nissl_load(i)
-        kp, des = feature.nissl_load_sift(i)
+        im = atlas.load_image(i)
+        kp, des = atlas.load_sift(i)
         im_kp = cv2.drawKeypoints(im, kp, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        feature.im_write('SIFT-' + str(i) + ".jpg", im_kp)
+        util.im_write('SIFT-' + str(i) + ".jpg", im_kp)
 
 def draw_kp(im):
-    kp, des = feature.extract_sift(im)
+    kp, des = sift.extract_sift(im)
 
     #kp = [k for k in kp if k.response > 0.08]
     #kp = [k for k in kp if k.size > 6]
@@ -38,10 +32,10 @@ def draw_kp(im):
 
 
 def match(im, atlas):
-    kp, des = feature.extract_sift(im)
+    kp, des = sift.extract_sift(im)
     #kp2, des2 = feature.extract_sift(atlas)
-    kp2, des2 = feature.nissl_load_sift(33)
-    match = feature.match(im, kp, des, atlas, kp2, des2)
+    kp2, des2 = atlas.load_sift(33)
+    match = matching.match(im, kp, des, atlas, kp2, des2)
 
     if match is None:
         return None
@@ -57,10 +51,10 @@ def match(im, atlas):
     return match
 
 filename = 'scripts_testing/region.jpg'
-im_region = feature.im_read(filename)
-im_region_gray = feature.im_read(filename, flags=cv2.IMREAD_GRAYSCALE)
+im_region = util.im_read(filename)
+im_region_gray = util.im_read(filename, flags=cv2.IMREAD_GRAYSCALE)
 
-im_atlas = feature.im_read('atlas_swanson/Level-33.jpg')
+im_atlas = util.im_read('atlas_swanson/Level-33.jpg')
 
 # *************** Resizing
 #im_region = misc.imresize(im_region, (170, 310))
@@ -80,6 +74,6 @@ draw_kp(im_region)
 #kp_max = max(kp, key=lambda x:x.response)
 #print("Min/Max:", kp_min.size, kp_max.response)
 
-#timing.stopwatch()
+timing.stopwatch()
 match = match(im_region, im_atlas)
-#timing.stopwatch("Matching")
+timing.stopwatch("Matching")

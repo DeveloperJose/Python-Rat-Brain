@@ -1,31 +1,10 @@
 import numpy as np
 import cv2
 
+import util
 import config
-import sys
 import logbook
 logger = logbook.Logger(__name__)
-logbook.StreamHandler(sys.stdout, level=logbook.DEBUG, format_string=config.LOGGER_FORMAT_STRING).push_application()
-
-def unit_vector(vector):
-    """ Returns the unit vector of the vector.  """
-    norm = np.linalg.norm(vector)
-    u = vector / norm
-    return u
-
-def angle_between(v1, v2):
-    """ Returns the angle in radians between vectors 'v1' and 'v2'::
-            >>> angle_between((1, 0, 0), (0, 1, 0))
-            1.5707963267948966
-            >>> angle_between((1, 0, 0), (1, 0, 0))
-            0.0
-            >>> angle_between((1, 0, 0), (-1, 0, 0))
-            3.141592653589793
-    """
-    v1_u = unit_vector(v1)
-    v2_u = unit_vector(v2)
-    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
-
 
 def calc_reproj_error(H, src_pts, dst_pts):
     # How many points are there in total?
@@ -66,6 +45,9 @@ def calc_new_homography(H, src_pts, dst_pts, threshold):
     return H, inliers, error, total_error
 
 def ransac(src_pts, dst_pts, corners, threshold=20,max_iters=1500):
+    if not config.NEW_RANSAC:
+        return cv2_ransac(src_pts, dst_pts)
+
     # Keep track of our best results
     best_comparison_metric = 0
     best_homography = None
@@ -141,7 +123,7 @@ def ransac(src_pts, dst_pts, corners, threshold=20,max_iters=1500):
                 vec2 = H_2[1][0:2]
                 vec1_mag = np.linalg.norm(vec1)
                 vec2_mag = np.linalg.norm(vec2)
-                angle = np.rad2deg(angle_between(vec1, vec2))
+                angle = np.rad2deg(util.angle_between(vec1, vec2))
                 inlier_count = np.sum(inliers_2)
 
                 m0 = 0.25 * (inlier_count/1000)
@@ -176,17 +158,35 @@ def ransac(src_pts, dst_pts, corners, threshold=20,max_iters=1500):
     # End of RANSAC loop
     logger.debug("[Ransac] Finished iterations. Total {0}, Bad H {1}, Non Convex {2}, Decent {3}", iterations, count_bad_homography, count_non_convex, iterations-count_bad_homography-count_non_convex)
 
-    return {"homography": best_homography,
-            "inlier_mask": best_inliers_mask,
-            "inlier_count": best_inliers_count,
-            "original_inlier_mask": best_inliers_original,
-            "total_error": best_total_error,
+    return {
+            "homography": best_homography,
             'metric': best_comparison_metric,
-            "min_error": debug_min_error,
-            "max_error": debug_max_error,
-            "avg_error": debug_avg_error
+            'inlier_mask': best_inliers_mask,
+            'inlier_count': best_inliers_count,
+            'original_inlier_mask': best_inliers_original,
+            'total_error': best_total_error,
+            'min_error': debug_min_error,
+            'max_error': debug_max_error,
+            'avg_error': debug_avg_error,
+            'src_pts': src_pts,
+            'dst_pts': dst_pts
             }
 
+def cv2_ransac(src_pts, dst_pts):
+    import cv2
+    H, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, config.RANSAC_REPROJ_TRESHHOLD, None, config.RANSAC_MAX_ITERS, config.RANSAC_CONFIDENCE)
+    return  {
+            "homography": H,
+            "inlier_mask": mask,
+            "inlier_count": mask.ravel().sum(),
+            "original_inlier_mask": None,
+            "total_error": -1,
+            "min_error": -1,
+            "max_error": -1
+            }
+
+import sys
+logbook.StreamHandler(sys.stdout, level=logbook.DEBUG, format_string=config.LOGGER_FORMAT_STRING).push_application()
 if __name__ == '__main__':
     import feature
     im_region = feature.im_read('C:/Users/xeroj/Desktop/Local_Programming/Vision-Rat-Brain/scripts_testing/region.jpg')

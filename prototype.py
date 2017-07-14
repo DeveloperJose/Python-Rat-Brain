@@ -1,19 +1,20 @@
 # -*- coding: utf-8 -*-
 import sys
-import os
 import numpy as np
 
-from PyQt5.QtCore import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QGroupBox, QPushButton, QLabel, QProgressBar, QSlider, QFileDialog
 
 import config
 import logbook
 logger = logbook.Logger(__name__)
 logbook.StreamHandler(sys.stdout, level=logbook.DEBUG, format_string=config.LOGGER_FORMAT_STRING).push_application()
 
-import feature
+import util
 import timing
+import warping
+import sift
+import cv2
 from graph import Graph
 from dialog import ResultsDialog
 from thread import MatchingThread
@@ -228,7 +229,7 @@ class Prototype(QWidget):
     #   Class Functions
     ##################################################################################
     def refresh_image(self):
-        im = feature.im_read(self.nissl_filename)
+        im = util.im_read(self.nissl_filename)
         self.canvas_input.imshow(im)
 
     def set_im_region(self, im_region):
@@ -243,15 +244,14 @@ class Prototype(QWidget):
 
         # Check if we should save the region for testing
         if config.UI_SAVE_REGION:
-            feature.im_write('region.jpg', im_region)
+            util.im_write('region.jpg', im_region)
 
         # Save the original selection for actual matching
         self.region = im_region
 
         # Check if the user would like to see the region keypoints
         if config.UI_SHOW_KP:
-            kp, des = feature.extract_sift(im_region)
-            import cv2
+            kp, des = sift.extract_sift(im_region)
             im_region = cv2.drawKeypoints(im_region, kp, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         self.canvas_region.imshow(im_region)
@@ -302,7 +302,7 @@ class Prototype(QWidget):
     def on_click_btn_warp(self):
         min_disp = self.slider_warp_disp.getRange()[0]
         max_disp = self.slider_warp_disp.getRange()[1]
-        im_warp = feature.warp(self.canvas_region.im, 5, min_disp, max_disp)
+        im_warp = warping.warp(self.canvas_region.im, 5, min_disp, max_disp)
         self.canvas_region.imshow(im_warp)
 
     def on_click_btn_reset(self):
