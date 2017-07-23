@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QAbstractItemView, QLabel, QHeaderView
 from PyQt5.QtCore import Qt
+import PyQt5
 
 import config
 import util
 import matching
-import PyQt5
+
 
 class ResultsDialog(QDialog):
     def __init__(self, filename, matches, parent=None):
@@ -37,7 +38,7 @@ class ResultsDialog(QDialog):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setMinimumWidth(len(self.labels) * 160 + 50)
+        self.table.setMinimumWidth(1500)
         self.table.setMinimumHeight(450)
         self.table.setRowCount(len(self.matches))
         self.table.setColumnCount(len(self.labels))
@@ -86,7 +87,7 @@ class ImageDialog(QDialog):
         layout = QVBoxLayout()
 
         from graph import Graph
-        self.canvas = Graph(self, width=20, height=20, dpi=100)
+        self.canvas = Graph(self, width=10, height=100, dpi=120)
         self.canvas.is_interactive = False
         layout.addWidget(self.canvas)
 
@@ -117,7 +118,13 @@ class TestWidget(PyQt5.QtWidgets.QWidget):
                 "max_error": 500.203123,
                 "avg_error": 15.12314123
                 }
-        m0 = matching.Match(-5, np.ones(10), ransac, None, np.ones(5), np.ones(5), 100, True)
+
+        extra_data = {
+                'images': (),
+                'is_convex': True,
+                'hu_distance': 0.1023
+                }
+        m0 = matching.Match(-5, np.ones(10), ransac, extra_data)
         matches = [m0, m0, m0, m0]
         diag = ResultsDialog(filename, matches, self)
         diag.show()

@@ -4,8 +4,10 @@
 # Currently unused in program
 import numpy as np
 import cv2
+import sift
+from multiprocessing.pool import ThreadPool
 
-def extract_asift(detector, img, mask=None, pool=None, start=0, end=180, inc=72.0):
+def extract_asift(img, mask=None, cpus=4, start=0, end=180, inc=72.0):
     '''
     affine_detect(detector, img, mask=None, pool=None) -> keypoints, descrs
     Apply a set of affine transormations to the image, detect keypoints and
@@ -13,41 +15,36 @@ def extract_asift(detector, img, mask=None, pool=None, start=0, end=180, inc=72.
     See http://www.ipol.im/pub/algo/my_affine_sift/ for the details.
     ThreadPool object may be passed to speedup the computation.
     '''
+    detector = sift.SIFT
     params = [(1.0, 0.0)]
     for t in 2**(0.5*np.arange(1,6)):
-        #for phi in np.arange(0, 180, 72.0 / t):
         for phi in np.arange(start, end, inc / t):
             params.append((t, phi))
 
     def f(p):
         t, phi = p
         timg, tmask, Ai = __affine_skew(t, phi, img)
-        keypoints = detector.detect(timg, tmask)
-
-        # Filter keypoints
-        #keypoints = [k for k in keypoints if k.response > 0.085]
-
-        descrs = detector.compute(timg, keypoints)
+        keypoints, descrs = detector.detectAndCompute(timg, tmask)
         for kp in keypoints:
             x, y = kp.pt
             kp.pt = tuple( np.dot(Ai, (x, y, 1)) )
         if descrs is None:
-            return None, None
-
+            descrs = []
         return keypoints, descrs
 
     keypoints, descrs = [], []
-    if pool is None:
-        ires = map(f, params)
-    else:
-        ires = pool.map(f, params)
+    pool = ThreadPool(cpus)
+    #if pool is None:
+    #    ires = map(f, params)
+    #else:
+    ires = pool.map(f, params)
+    pool.close()
 
     for i, (k, d) in enumerate(ires):
+        #logger.debug('affine sampling: %d / %d\r' % (i+1, len(params)))
         keypoints.extend(k)
         descrs.extend(d)
 
-    # Clean up descriptors
-    descrs = [x for x in descrs if x is not None and len(x) > 0]
     return keypoints, np.array(descrs)
 
 def __affine_skew(tilt, phi, img, mask=None):

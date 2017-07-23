@@ -17,6 +17,7 @@ def extract_sift(im):
 
     return SIFT.detectAndCompute(im, None)
 
+
 # https://isotope11.com/blog/storing-surf-sift-orb-keypoints-using-opencv-in-python
 def pickle_sift(keypoints, descriptors):
     i = 0

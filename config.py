@@ -28,7 +28,7 @@ NEW_RANSAC = True
 ==================== Matching
 ================================================= """
 # Neighbor distance ratio for the ratio test as per Lowe's SIFT paper
-DISTANCE_RATIO = 0.8
+DISTANCE_RATIO = 0.9
 
 # Number of minimum good matches needed to compare descriptors
 # You need at least 4 to be able to estimate a homography
@@ -47,10 +47,10 @@ MATCH_RECT_COLOR = (0, 255, 255)
 ================================================= """
 # Homography matrices whose absolute value determinant is lower will be discarded
 # Default: 0.001
-HOMOGRAPHY_DETERMINANT_THRESHOLD = 0.001
+HOMOGRAPHY_DETERMINANT_THRESHOLD = 1e-4
 
 # When transforming corners using homography, should we allow non-convex shapes?
-ALLOW_NON_CONVEX_CORNERS = False
+ALLOW_NON_CONVEX_CORNERS = True
 
 # Moments larger than the threshold will be discarded
 # Default: 2
@@ -81,7 +81,7 @@ SIFT_CONTRAST_THRESHOLD = 0.08
 
 # The larger the threshold, the more features that are retained
 # Default: 30
-SIFT_EDGE_THRESHOLD = 10
+SIFT_EDGE_THRESHOLD = 30
 
 # Sigma of Gaussian used by SIFT
 # Reduce for images captured by a weak camera with soft lenses
@@ -90,7 +90,7 @@ SIFT_SIGMA = 3
 
 # Number of SIFT features to be extracted
 # If 0, SIFT will decide the best number of features
-SIFT_FEATURES = 0
+SIFT_FEATURES = 3
 
 # Larger means more features
 SIFT_OCTAVE_LAYERS = 2
@@ -119,7 +119,7 @@ UI_SHOW_KP = True
 UI_SAVE_REGION = False
 
 # Should we save the results when they are selected?
-UI_SAVE_RESULTS = True
+UI_SAVE_RESULTS = False
 
 """
 =================================================
@@ -146,7 +146,7 @@ FLANN_SEARCH_PARAMS = dict(checks=200)
 ==================== Atlas Automatic Set-Up
 ================================================= """
 if (ATLAS.casefold == "Swanson".casefold):
-    NISSL_DEFAULT_FILE = 'dataset/testing/region-34.jpg'
+    NISSL_DEFAULT_FILE = 'dataset/testing/region-68.jpg'
     NISSL_DIR = "dataset/atlas_swanson"
     NISSL_PREFIX = "Level-"
     NISSL_DIGITS = 2

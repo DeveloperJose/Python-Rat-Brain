@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 
-import util
 import config
 import logbook
 logger = logbook.Logger(__name__)
@@ -44,7 +43,7 @@ def calc_new_homography(H, src_pts, dst_pts, threshold):
 
     return H, inliers, error, total_error
 
-def ransac(src_pts, dst_pts, corners, threshold=20,max_iters=1500):
+def ransac(src_pts, dst_pts, corners, src_kp, dst_kp, im1, im2, threshold=20,max_iters=1500):
     if not config.NEW_RANSAC:
         return cv2_ransac(src_pts, dst_pts)
 
@@ -101,13 +100,13 @@ def ransac(src_pts, dst_pts, corners, threshold=20,max_iters=1500):
 
         # Transform the corners of the original image
         try:
-            transformedCorners = cv2.perspectiveTransform(corners, H)
+            transformed_corners = cv2.perspectiveTransform(corners, H)
         except:
             iterations+=1
             count_non_convex+=1
 
         # Check the convexity of the transformed corners
-        isConvex = cv2.isContourConvex(transformedCorners)
+        isConvex = cv2.isContourConvex(transformed_corners)
         if not isConvex:
             iterations+=1
             count_non_convex+=1
@@ -119,28 +118,34 @@ def ransac(src_pts, dst_pts, corners, threshold=20,max_iters=1500):
 
             if H_2 is not None:
                 # Linear combination
-                vec1 = H_2[0][0:2]
-                vec2 = H_2[1][0:2]
-                vec1_mag = np.linalg.norm(vec1)
-                vec2_mag = np.linalg.norm(vec2)
-                angle = np.rad2deg(util.angle_between(vec1, vec2))
-                inlier_count = np.sum(inliers_2)
+                #vec1 = H_2[0][0:2]
+                #vec2 = H_2[1][0:2]
+                #vec1_mag = np.linalg.norm(vec1)
+                #vec2_mag = np.linalg.norm(vec2)
+                #angle = np.rad2deg(util.angle_between(vec1, vec2))
+                #inlier_count = np.sum(inliers_2)
 
-                m0 = 0.25 * (inlier_count/1000)
-                m1 = 0.4 * (inlier_count/total_pts)
-                m2 = 0.15 * min(vec1_mag/vec2_mag, vec2_mag/vec1_mag)
-                m3 = 0.2 * np.abs(np.sin(angle))
-                linear = m0 + m1 + m2 + m3
+                #m0 = 0.25 * (inlier_count/1000)
+                #m1 = 0.4 * (inlier_count/total_pts)
+                #m2 = 0.15 * min(vec1_mag/vec2_mag, vec2_mag/vec1_mag)
+                #m3 = 0.2 * np.abs(np.sin(angle))
+                #linear = m0 + m1 + m2 + m3
 
                 # Compare inlier counts to update our best model
                 #if np.sum(inliers) > best_inliers_count:
-                if linear > best_comparison_metric:
+
+                #kp_inliers = src_kp[inliers_2]
+                #metric = 0
+                #for kp in kp_inliers:
+                #    metric += (kp.size)
+                metric = np.sum(inliers_2)
+                if metric > best_comparison_metric:
                     H = H_2
                     inliers = inliers_2
                     error = error_2
                     total_error = total_error_2
 
-                    best_comparison_metric = linear
+                    best_comparison_metric = metric
                     best_homography = H
                     best_inliers_mask = inliers
                     best_inliers_count = np.sum(inliers)

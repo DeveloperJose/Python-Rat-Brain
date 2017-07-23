@@ -6,6 +6,7 @@ import util
 import timing
 import logbook
 import sift
+import asift
 import atlas
 import matching
 logger = logbook.Logger(__name__)
@@ -18,7 +19,7 @@ def save_atlas_sift():
         util.im_write('SIFT-' + str(i) + ".jpg", im_kp)
 
 def draw_kp(im):
-    kp, des = sift.extract_sift(im)
+    kp, des = asift.extract_asift(im)
 
     #kp = [k for k in kp if k.response > 0.08]
     #kp = [k for k in kp if k.size > 6]
@@ -31,11 +32,10 @@ def draw_kp(im):
     return kp, des
 
 
-def match(im, atlas):
-    kp, des = sift.extract_sift(im)
-    #kp2, des2 = feature.extract_sift(atlas)
-    kp2, des2 = atlas.load_sift(33)
-    match = matching.match(im, kp, des, atlas, kp2, des2)
+def match_testing(im, atlas):
+    kp, des = asift.extract_asift(im)
+    kp2, des2 = asift.extract_asift(atlas)
+    match = matching.__match(im, kp, des, atlas, kp2, des2, 0)
 
     if match is None:
         return None
@@ -50,11 +50,11 @@ def match(im, atlas):
 
     return match
 
-filename = 'scripts_testing/region.jpg'
+filename = 'dataset/testing/region-68.jpg'
 im_region = util.im_read(filename)
 im_region_gray = util.im_read(filename, flags=cv2.IMREAD_GRAYSCALE)
 
-im_atlas = util.im_read('atlas_swanson/Level-33.jpg')
+im_atlas = util.im_read('dataset/atlas_swanson/Level-33.jpg')
 
 # *************** Resizing
 #im_region = misc.imresize(im_region, (170, 310))
@@ -67,6 +67,7 @@ im_atlas = util.im_read('atlas_swanson/Level-33.jpg')
 
 #draw_kp(feature.im_read('scripts_testing/region-34.jpg'))
 draw_kp(im_region)
+draw_kp(im_atlas)
 #kp, des = draw_kp(im_atlas)
 #print("KP: ", len(kp))
 # x.size or x.response
@@ -74,6 +75,6 @@ draw_kp(im_region)
 #kp_max = max(kp, key=lambda x:x.response)
 #print("Min/Max:", kp_min.size, kp_max.response)
 
-timing.stopwatch()
-match = match(im_region, im_atlas)
-timing.stopwatch("Matching")
+#timing.stopwatch()
+#match = match_testing(im_region, im_atlas)
+#timing.stopwatch("Matching")
