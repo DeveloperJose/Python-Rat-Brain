@@ -149,15 +149,15 @@ def __is_good_match(H, im2, corners):
     det = np.linalg.det(H)
 
     # If it's too low for comfort, don't consider the match
-    if abs(det) < config.HOMOGRAPHY_DETERMINANT_THRESHOLD or abs(det) > 20:
+    if abs(det) < config.HOMOGRAPHY_DETERMINANT_THRESHOLD:
         logger.debug("Failed homography test: {:.5f}", det)
-        #return False
+        return False
 
     # Only accept corners that remain convex after being transformed
     is_convex = cv2.isContourConvex(transformed_corners)
     if not is_convex and not config.ALLOW_NON_CONVEX_CORNERS:
         logger.debug("Not convex")
-        #return False
+        return False
 
     # Get the moments
     original_moments = cv2.moments(corners)
@@ -203,24 +203,24 @@ def __get_extra_images(im1, kp1, im2, kp2, matches, ransac_results, corners):
     im_corner_rectangle = cv2.polylines(im2, [np.int32(transformedCorners)], True, config.MATCH_RECT_COLOR, 2, cv2.LINE_AA)
 
     # Draw the lines between the 2 images connecting matches
-    im_inliers = cv2.drawMatches(im1, kp1, im_corner_rectangle, kp2, matches, None, None, None, inlier_mask.tolist(), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    #im_inliers = cv2.drawMatches(im1, kp1, im_corner_rectangle, kp2, matches, None, None, None, inlier_mask.tolist(), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
     # ******************** Image 3: The original 4 points
     # Get the 4 points
-    original_inlier_mask = ransac_results["original_inlier_mask"]
+    #original_inlier_mask = ransac_results["original_inlier_mask"]
 
-    im_original = cv2.drawMatches(im1, kp1, im2, kp2, matches, None, None, None, original_inlier_mask.tolist(), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    #im_original = cv2.drawMatches(im1, kp1, im2, kp2, matches, None, None, None, original_inlier_mask.tolist(), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-    src_pts = ransac_results['src_pts']
-    original_pts = src_pts[original_inlier_mask]
+    #src_pts = ransac_results['src_pts']
+    #original_pts = src_pts[original_inlier_mask]
 
     transformed_pts = None
-    try:
+    #try:
 
-        transformed_pts = cv2.perspectiveTransform(np.array([original_pts]), H).reshape(4, 2)
-    except:
-        logger.debug("Couldn't transform original 4 pts")
-        im_original_2 = im2
+    #    transformed_pts = cv2.perspectiveTransform(np.array([original_pts]), H).reshape(4, 2)
+    #except:
+    #    logger.debug("Couldn't transform original 4 pts")
+    #    im_original_2 = im2
 
     if transformed_pts is not None:
         import pylab as plt
@@ -266,8 +266,8 @@ def __get_extra_images(im1, kp1, im2, kp2, matches, ransac_results, corners):
 
     # End of image results
     extra_images = (
-            #ImageInfo(im_all_lines, "All Lines", "all-lines"),
-            ImageInfo(im_inliers, "Inliers Only", "inliers"),
+            ImageInfo(im_all_lines, "All Lines", "all-lines"),
+            #ImageInfo(im_inliers, "Inliers Only", "inliers"),
             #ImageInfo(im_original, "Original 4 Points", "orig-4"),
             #ImageInfo(im_overlay, "Overlay", "overlay-warp"),
             #ImageInfo(im_original_2, "4 points 2", "orig")

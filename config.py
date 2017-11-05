@@ -9,7 +9,7 @@ ATLAS = "Swanson"
 
 # Should multithreading be used when matching?
 # If True, the debug logs will not be in sequential order and PDB debugging will break
-MULTITHREAD = False
+MULTITHREAD = True
 
 # We will attempt to reduce the image width to this size but maintain aspect ratio
 # Default: 200
@@ -21,14 +21,14 @@ RESIZE_WIDTH = 200
 ================================================= """
 # Should we use our implemented RANSAC?
 # If false, OpenCV RANSAC is used
-NEW_RANSAC = True
+NEW_RANSAC = False
 
 """
 =================================================
 ==================== Matching
 ================================================= """
 # Neighbor distance ratio for the ratio test as per Lowe's SIFT paper
-DISTANCE_RATIO = 0.9
+DISTANCE_RATIO = 0.8
 
 # Number of minimum good matches needed to compare descriptors
 # You need at least 4 to be able to estimate a homography
@@ -50,7 +50,7 @@ MATCH_RECT_COLOR = (0, 255, 255)
 HOMOGRAPHY_DETERMINANT_THRESHOLD = 1e-4
 
 # When transforming corners using homography, should we allow non-convex shapes?
-ALLOW_NON_CONVEX_CORNERS = True
+ALLOW_NON_CONVEX_CORNERS = False
 
 # Moments larger than the threshold will be discarded
 # Default: 2
@@ -77,26 +77,26 @@ RANSAC_CONFIDENCE = 0.99
 ================================================= """
 # The larger the threshold, the less features are produced by the detector.
 # Default: 0.08
-SIFT_CONTRAST_THRESHOLD = 0.08
+SIFT_CONTRAST_THRESHOLD = 0.05
 
 # The larger the threshold, the more features that are retained
 # Default: 30
-SIFT_EDGE_THRESHOLD = 30
+SIFT_EDGE_THRESHOLD = 100
 
 # Sigma of Gaussian used by SIFT
 # Reduce for images captured by a weak camera with soft lenses
 # Default: 2
-SIFT_SIGMA = 3
+SIFT_SIGMA = 2
 
 # Number of SIFT features to be extracted
 # If 0, SIFT will decide the best number of features
-SIFT_FEATURES = 3
+SIFT_FEATURES = 0
 
 # Larger means more features
 SIFT_OCTAVE_LAYERS = 2
 
 # Should we use ASIFT instead of regular SIFT?
-USE_AFFINE = False
+USE_AFFINE = True
 
 ASIFT_START = 0
 ASIFT_END = 180
@@ -119,7 +119,7 @@ UI_SHOW_KP = True
 UI_SAVE_REGION = False
 
 # Should we save the results when they are selected?
-UI_SAVE_RESULTS = False
+UI_SAVE_RESULTS = True
 
 """
 =================================================

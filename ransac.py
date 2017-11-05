@@ -187,7 +187,8 @@ def cv2_ransac(src_pts, dst_pts):
             "original_inlier_mask": None,
             "total_error": -1,
             "min_error": -1,
-            "max_error": -1
+            "max_error": -1,
+            'metric': mask.ravel().sum()
             }
 
 import sys
