@@ -115,7 +115,7 @@ def match(kp1, des1, kp2, des2):
             # 1: Distance/Radius Check
             kpb_x = kpb[0]
             kpb_y = kpb[1]
-            d_pt_squared = (kpb_x - kpa_x) ** 2 + (kpb_x - kpa_x) ** 2
+            d_pt_squared = (kpb_x - kpa_x) ** 2 + (kpb_y - kpa_y) ** 2
             if d_pt_squared >= RADIUS_SQUARED:
                 continue
 
