@@ -146,12 +146,18 @@ def match(kp1, des1, kp2, des2):
 
 np.random.seed(1)
 np.set_printoptions(threshold=np.nan, linewidth=1000)
+BF = cv2.BFMatcher(normType=cv2.NORM_L2)
 SIFT = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.05, edgeThreshold=100, sigma=2)
-RADIUS = 50
+RADIUS = 25
 RADIUS_SQUARED = RADIUS ** 2
 SCALE_THRESHOLD = 3
 DISTANCE_THRESHOLD = 200
 RESPONSE_THRESHOLD = 0.01
+
+DISTANCE_RATIO = 0.95
+RANSAC_REPROJ_TRESHHOLD = 10 # The higher the threshold, the lower the inliers
+RANSAC_MAX_ITERS = 2000
+RANSAC_CONFIDENCE = 0.99
 
 # Precompute SIFT
 precompute_sift()
@@ -195,16 +201,29 @@ pw_im, pw_label, pw_kp, pw_des = load('PW_BB_V1_SIFT.npz')
 # plt.imshow(count_im)
 total = 0
 def perform_pass(s_idx):
-    global s_kp, s_des, pw_kp, pw_des, total
+    global s_kp, s_des, pw_kp, pw_des
     matches = []
     print('s_idx', s_idx)
     for pw_idx in range(pw_kp.shape[0]):
         matches.append(match(s_kp[s_idx], s_des[s_idx], pw_kp[pw_idx], pw_des[pw_idx]))
 
-    total += 1
-    print('Total', total, '/', 73)
     np.savez_compressed(str(s_idx) + '-M', m=matches)
     #return matches
+
+def perform_ransac(s_idx):
+    global s_kp, s_des, pw_kp, pw_des
+    matches = []
+    print('s_idx', s_idx)
+    for pw_idx in range(pw_kp.shape[0]):
+        mat = BF.knnMatch(s_des[s_idx], pw_des[pw_idx], k=2)
+        mat = [m[0] for m in mat if len(m) == 2 and m[0].distance < m[1].distance * DISTANCE_RATIO]
+        src_pts = np.float32([(s_kp[s_idx][m.queryIdx][0],s_kp[s_idx][m.queryIdx][1]) for m in mat])
+        dst_pts = np.float32([(pw_kp[pw_idx][m.trainIdx][0],pw_kp[pw_idx][m.trainIdx][1]) for m in mat])
+        H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=RANSAC_REPROJ_TRESHHOLD,maxIters=RANSAC_MAX_ITERS, confidence=RANSAC_CONFIDENCE)
+        #matchesMask = mask.ravel().tolist()
+        matches.append(np.array([mask.sum()]))
+
+    np.savez_compressed(str(s_idx) + '-R', m=matches)
 
 # if __name__ == '__main__':
 #     time_start = timer()
@@ -214,7 +233,8 @@ def perform_pass(s_idx):
 #     # s_idx = range(32, 34)
 #
 #     print('Begin pool work')
-#     pool.map(perform_pass, s_idx)
+#     # pool.map(perform_pass, s_idx)
+#     pool.map(perform_ransac, s_idx)
 #     pool.close()
 #     pool.join()
 #
@@ -222,22 +242,62 @@ def perform_pass(s_idx):
 #     print("Program took %.3fs" % duration)
 
 # Drawwww
-im_result = np.zeros((73, 89))
-for i in range(72):
-    path = str(i) + '-M.npz'
-    m_data = np.load(path)
-    m = m_data['m']
-    count = []
-    for pw_matches in m:
-        count.append(len(pw_matches))
-    count_norm = np.array(count) / np.max(count)
-    im_result[i] = (count_norm*255).reshape(1, 89)
+def get_drawings(path):
+    im_result = np.zeros((73, 89))
+    im_metric = np.zeros((73, 89))
+    for sidx in range(73):
+        temp_path = os.path.join(path, str(sidx) + '-M.npz')
+        m = np.load(temp_path)['m']
+        count = []
+        metric = []
+        for pidx in range(89):
+            pw_matches = m[pidx]
+            count.append(len(pw_matches))
+            metric.append(len(pw_matches) / (len(s_kp[sidx]) + len(pw_kp[pidx]) - len(pw_matches)))
+        count_norm = np.array(count) / np.max(count)
+        metric_norm = np.array(metric) / np.max(metric)
+        im_result[sidx] = (count_norm * 255).reshape(1, 89)
+        im_metric[sidx] = (metric_norm * 255).reshape(1, 89)
 
-fig = plt.figure(0)
-ax = fig.add_subplot(111)
-ax.set_xlabel('PW Level')
-ax.set_ylabel('S Level')
-ax.set_xticks(np.arange(0,89,5))
-ax.set_yticks(np.arange(0,72,5))
-ax.set_title('Matches')
-plt.imshow(im_result)
+    return im_result, im_metric
+
+def imshow_matches(im, title):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_xlabel('PW Level')
+    ax.set_ylabel('S Level')
+    ax.set_xticks(np.arange(0,89,5))
+    ax.set_yticks(np.arange(0,72,5))
+    ax.set_title(title)
+    plt.set_cmap(plt.get_cmap('hot'))
+    plt.imshow(im)
+
+im_result, im_metric = get_drawings('sm_v1')
+imshow_matches(im_result, 'Experiment 1: Matches Count')
+imshow_matches(im_metric, 'Experiment 1: Metric')
+
+im_result, im_metric = get_drawings('sm_v2')
+imshow_matches(im_result, 'Experiment 2: Matches Count')
+imshow_matches(im_metric, 'Experiment 2: Metric')
+
+# RANSAC
+# im_inliers = np.zeros((73, 89))
+# for sidx in range(73):
+#     path = os.path.join('sm_ransac', str(sidx) + '-R.npz')
+#     m = np.load(path)['m']
+#     inliers = []
+#     for pidx in range(89):
+#         pw_matches = m[pidx]
+#         inliers.append(pw_matches[0])
+#     inlier_norm = np.array(inliers) / np.max(inliers)
+#     im_inliers[sidx] = (inlier_norm * 255).reshape(1, 89)
+#
+# fig = plt.figure(0)
+# ax = fig.add_subplot(111)
+# ax.set_xlabel('PW Level')
+# ax.set_ylabel('S Level')
+# ax.set_xticks(np.arange(0,89,5))
+# ax.set_yticks(np.arange(0,72,5))
+# ax.set_title('Inliers')
+# plt.set_cmap(plt.get_cmap('hot'))
+# plt.imshow(im_inliers)
