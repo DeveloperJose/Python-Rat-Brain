@@ -3,7 +3,7 @@ import cv2
 import os
 import numpy as np
 import pylab as plt
-from multiprocessing.pool import ThreadPool
+from multiprocessing.pool import Pool
 from timeit import default_timer as timer
 
 FIGURE_IDX = 0
@@ -160,15 +160,62 @@ s_im, s_label, s_kp, s_des = load('S_BB_V1_SIFT.npz')
 pw_im, pw_label, pw_kp, pw_des = load('PW_BB_V1_SIFT.npz')
 
 # =======******* Individual Testing [S33 PW68]
-s_idx = np.where(s_label == 33)[0][0]
-pw_idx = np.where(pw_label == 68)[0][0]
-(im1, kp1, des1) = (s_im[s_idx], s_kp[s_idx], s_des[s_idx])
-(im2, kp2, des2) = (pw_im[pw_idx], pw_kp[pw_idx], pw_des[pw_idx])
-matches = match(kp1,des1,kp2,des2)
-# Convert to OpenCV objects for viewing
-matches = match_to_cv(matches)
-kp1 = array_to_kp(kp1)
-kp2 = array_to_kp(kp2)
-im_matches = cv2.drawMatches(im1, kp1, im2, kp2, matches, None, flags=cv2.DRAW_MATCHES_FLAGS_NOT_DRAW_SINGLE_POINTS)
-plt.gray()
-imshow(im_matches, 'New Matching')
+# s_idx = np.where(s_label == 33)[0][0]
+# pw_idx = np.where(pw_label == 68)[0][0]
+# (im1, kp1, des1) = (s_im[s_idx], s_kp[s_idx], s_des[s_idx])
+# (im2, kp2, des2) = (pw_im[pw_idx], pw_kp[pw_idx], pw_des[pw_idx])
+# matches = match(kp1,des1,kp2,des2)
+# # Convert to OpenCV objects for viewing
+# matches = match_to_cv(matches)
+# kp1 = array_to_kp(kp1)
+# kp2 = array_to_kp(kp2)
+# im_matches = cv2.drawMatches(im1, kp1, im2, kp2, matches, None, flags=cv2.DRAW_MATCHES_FLAGS_NOT_DRAW_SINGLE_POINTS)
+# plt.gray()
+# imshow(im_matches, 'New Matching')
+
+# =======******* Row Testing [S33 and all PW]
+# PW68 is IDX:39
+# matches = []
+# s_idx = np.where(s_label == 33)[0][0]
+# (im1, kp1, des1) = (s_im[s_idx], s_kp[s_idx], s_des[s_idx])
+# for pw_idx in range(pw_im.shape[0]):
+#     print(pw_idx, '/', pw_im.shape[0])
+#     (im2, kp2, des2) = (pw_im[pw_idx], pw_kp[pw_idx], pw_des[pw_idx])
+#     m = match(kp1, des1, kp2, des2)
+#     matches.append(m)
+#
+# count = []
+# for match in matches:
+#     count.append(len(match))
+#
+# count_norm = np.array(count) / np.max(count)
+# count_im = (count_norm * 255).reshape(1, 89)
+# plt.gray()
+# plt.imshow(count_im)
+total = 0
+def perform_pass(s_idx):
+    global s_kp, s_des, pw_kp, pw_des, total
+    matches = []
+    print('s_idx', s_idx)
+    for pw_idx in range(pw_kp.shape[0]):
+        matches.append(match(s_kp[s_idx], s_des[s_idx], pw_kp[pw_idx], pw_des[pw_idx]))
+
+    total += 1
+    print('Total', total, '/', 73)
+    np.savez_compressed(str(s_idx) + '-M', m=matches)
+    #return matches
+
+if __name__ == '__main__':
+    time_start = timer()
+
+    pool = Pool()
+    s_idx = range(s_kp.shape[0])
+    # s_idx = range(32, 34)
+
+    print('Begin pool work')
+    pool.map(perform_pass, s_idx)
+    pool.close()
+    pool.join()
+
+    duration = timer() - time_start
+    print("Program took %.3fs" % duration)
