@@ -10,6 +10,9 @@ atlas_swanson_pdf/
 # Testing images
 part.*
 
+# Similarity matrix npz
+*-M.npz
+
 # Spyder
 *.spyproject/
 

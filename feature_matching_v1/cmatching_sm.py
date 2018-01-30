@@ -9,15 +9,16 @@ from timeit import default_timer as timer
 FIGURE_IDX = 0
 def imshow(im, title=''):
     global FIGURE_IDX
-    plt.figure(FIGURE_IDX)
+    figure = plt.figure(FIGURE_IDX)
     plt.axis('off')
     plt.tick_params(axis='both',
                     left='off', top='off', right='off', bottom='off',
                     labelleft='off', labeltop='off', labelright='off', labelbottom='off')
+
     plt.title(title)
     plt.imshow(im)
-
     FIGURE_IDX += 1
+    return figure
 
 def kp_to_array(kp):
     array = np.zeros((len(kp), 7), dtype=np.float32)
@@ -205,17 +206,38 @@ def perform_pass(s_idx):
     np.savez_compressed(str(s_idx) + '-M', m=matches)
     #return matches
 
-if __name__ == '__main__':
-    time_start = timer()
+# if __name__ == '__main__':
+#     time_start = timer()
+#
+#     pool = Pool()
+#     s_idx = range(s_kp.shape[0])
+#     # s_idx = range(32, 34)
+#
+#     print('Begin pool work')
+#     pool.map(perform_pass, s_idx)
+#     pool.close()
+#     pool.join()
+#
+#     duration = timer() - time_start
+#     print("Program took %.3fs" % duration)
 
-    pool = Pool()
-    s_idx = range(s_kp.shape[0])
-    # s_idx = range(32, 34)
+# Drawwww
+im_result = np.zeros((73, 89))
+for i in range(72):
+    path = str(i) + '-M.npz'
+    m_data = np.load(path)
+    m = m_data['m']
+    count = []
+    for pw_matches in m:
+        count.append(len(pw_matches))
+    count_norm = np.array(count) / np.max(count)
+    im_result[i] = (count_norm*255).reshape(1, 89)
 
-    print('Begin pool work')
-    pool.map(perform_pass, s_idx)
-    pool.close()
-    pool.join()
-
-    duration = timer() - time_start
-    print("Program took %.3fs" % duration)
+fig = plt.figure(0)
+ax = fig.add_subplot(111)
+ax.set_xlabel('PW Level')
+ax.set_ylabel('S Level')
+ax.set_xticks(np.arange(0,89,5))
+ax.set_yticks(np.arange(0,72,5))
+ax.set_title('Matches')
+plt.imshow(im_result)
