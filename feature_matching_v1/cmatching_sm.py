@@ -145,7 +145,7 @@ def match(kp1, des1, kp2, des2):
     return np.asarray(matches)
 
 np.random.seed(1)
-np.set_printoptions(threshold=np.nan, linewidth=1000)
+np.set_printoptions(threshold=np.nan, linewidth=115)
 BF = cv2.BFMatcher(normType=cv2.NORM_L2)
 SIFT = cv2.xfeatures2d.SIFT_create(contrastThreshold=0.05, edgeThreshold=100, sigma=2)
 RADIUS = 25
@@ -199,7 +199,6 @@ pw_im, pw_label, pw_kp, pw_des = load('PW_BB_V1_SIFT.npz')
 # count_im = (count_norm * 255).reshape(1, 89)
 # plt.gray()
 # plt.imshow(count_im)
-total = 0
 def perform_pass(s_idx):
     global s_kp, s_des, pw_kp, pw_des
     matches = []
@@ -208,7 +207,6 @@ def perform_pass(s_idx):
         matches.append(match(s_kp[s_idx], s_des[s_idx], pw_kp[pw_idx], pw_des[pw_idx]))
 
     np.savez_compressed(str(s_idx) + '-M', m=matches)
-    #return matches
 
 def perform_ransac(s_idx):
     global s_kp, s_des, pw_kp, pw_des
@@ -220,7 +218,6 @@ def perform_ransac(s_idx):
         src_pts = np.float32([(s_kp[s_idx][m.queryIdx][0],s_kp[s_idx][m.queryIdx][1]) for m in mat])
         dst_pts = np.float32([(pw_kp[pw_idx][m.trainIdx][0],pw_kp[pw_idx][m.trainIdx][1]) for m in mat])
         H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=RANSAC_REPROJ_TRESHHOLD,maxIters=RANSAC_MAX_ITERS, confidence=RANSAC_CONFIDENCE)
-        #matchesMask = mask.ravel().tolist()
         matches.append(np.array([mask.sum()]))
 
     np.savez_compressed(str(s_idx) + '-R', m=matches)
@@ -242,24 +239,28 @@ def perform_ransac(s_idx):
 #     print("Program took %.3fs" % duration)
 
 # Drawwww
-def get_drawings(path):
-    im_result = np.zeros((73, 89))
-    im_metric = np.zeros((73, 89))
+def load_sm(folder):
+    sm_match = np.zeros((73,89))
+    sm_metric = np.zeros((73,89))
     for sidx in range(73):
-        temp_path = os.path.join(path, str(sidx) + '-M.npz')
-        m = np.load(temp_path)['m']
+        path = os.path.join(folder, str(sidx) + '-M.npz')
+        m = np.load(path)['m']
         count = []
         metric = []
         for pidx in range(89):
             pw_matches = m[pidx]
             count.append(len(pw_matches))
             metric.append(len(pw_matches) / (len(s_kp[sidx]) + len(pw_kp[pidx]) - len(pw_matches)))
-        count_norm = np.array(count) / np.max(count)
-        metric_norm = np.array(metric) / np.max(metric)
-        im_result[sidx] = (count_norm * 255).reshape(1, 89)
-        im_metric[sidx] = (metric_norm * 255).reshape(1, 89)
+        sm_match[sidx] = np.asarray(count)
+        sm_metric[sidx] = np.asarray(metric)
+    return sm_match, sm_metric
 
-    return im_result, im_metric
+def norm_sm(sm, max_value=255):
+    im_result = np.zeros_like(sm)
+    for idx in range(sm.shape[0]):
+        norm = sm[idx] / np.max(sm[idx])
+        im_result[idx] = (norm*max_value).reshape(1, sm.shape[1])
+    return im_result
 
 def imshow_matches(im, title):
     fig = plt.figure()
@@ -272,13 +273,14 @@ def imshow_matches(im, title):
     plt.set_cmap(plt.get_cmap('hot'))
     plt.imshow(im)
 
-im_result, im_metric = get_drawings('sm_v1')
-imshow_matches(im_result, 'Experiment 1: Matches Count')
-imshow_matches(im_metric, 'Experiment 1: Metric')
+sm_v1_match, sm_v1_metric = load_sm('sm_v1')
+sm_v2_match, sm_v2_metric = load_sm('sm_v2')
 
-im_result, im_metric = get_drawings('sm_v2')
-imshow_matches(im_result, 'Experiment 2: Matches Count')
-imshow_matches(im_metric, 'Experiment 2: Metric')
+imshow_matches(norm_sm(sm_v1_match), 'Experiment 1: Matches Count')
+# imshow_matches(norm_sm(sm_v1_metric), 'Experiment 1: Metric')
+#
+# imshow_matches(norm_sm(sm_v2_match), 'Experiment 2: Matches Count')
+# imshow_matches(norm_sm(sm_v2_metric), 'Experiment 2: Metric')
 
 # RANSAC
 # im_inliers = np.zeros((73, 89))
@@ -301,3 +303,49 @@ imshow_matches(im_metric, 'Experiment 2: Metric')
 # ax.set_title('Inliers')
 # plt.set_cmap(plt.get_cmap('hot'))
 # plt.imshow(im_inliers)
+
+# Dynamic programming
+# Overlay
+# White = 255
+def overlay(ed_matrix, sm):
+    from skimage import color
+    norm = norm_sm(sm).astype(np.uint8)
+    color_mask = np.zeros((73,89,3))
+    for sidx in range(73):
+        pw_row = ed_matrix[sidx]
+        best_pw = np.argmax(pw_row)
+        color_mask[sidx, best_pw] = [0, 0, 255]
+        norm[sidx, best_pw] = 225
+
+    img_color = np.stack((norm,)*3,axis=2)
+    img_hsv = color.rgb2hsv(img_color)
+    color_mask_hsv = color.rgb2hsv(color_mask)
+    img_hsv[..., 0] = color_mask_hsv[..., 0]
+    img_hsv[..., 1] = color_mask_hsv[..., 1]
+    im_overlay = color.hsv2rgb(img_hsv)
+    return im_overlay
+
+def dynamic_prog(sm, pw_penalty, s_penalty, padding_value=0):
+    ed = np.zeros((73, 89))
+    #ed = np.pad(ed, 1, 'constant', constant_values=padding_value)[:-1,:-1]
+    ed[0:,:] = sm[0:,:] + pw_penalty
+    ed[:,0] = sm[:,0] + s_penalty
+    for i in range(1,73):
+        for j in range(1,89):
+            p1 = ed[i, j-1] + pw_penalty
+            p2 = ed[i-1,j-1] + sm[i,j]
+            p3 = ed[i-1][j] + s_penalty
+            ed[i,j]=min(p1,p2,p3)
+    return ed
+
+sm_matches, sm_metric = load_sm('sm_v2')
+pw_penalty = 100
+s_penalty = 200
+ed = dynamic_prog(norm_sm(sm_matches, 100), pw_penalty, s_penalty)
+aoi = ed[32:35, 38:41]
+best_pw = np.argmax(ed,axis=0)
+best_s = np.argmax(ed,axis=1)
+# PW68 is IDX:39
+print("PW68 best match", s_label[best_pw[39]])
+print("S33 best match", pw_label[best_s[33]])
+im_overlay = overlay(ed, sm_matches)
