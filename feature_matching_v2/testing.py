@@ -5,7 +5,7 @@ import pylab as plt
 import util
 import timing
 import logbook
-import sift
+import util_sift
 import asift
 import atlas
 import matching

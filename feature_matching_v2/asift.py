@@ -4,7 +4,7 @@
 # Currently unused in program
 import numpy as np
 import cv2
-import sift
+import util_sift
 from multiprocessing.pool import ThreadPool
 
 def extract_asift(img, mask=None, cpus=4, start=0, end=180, inc=72.0):
@@ -15,7 +15,7 @@ def extract_asift(img, mask=None, cpus=4, start=0, end=180, inc=72.0):
     See http://www.ipol.im/pub/algo/my_affine_sift/ for the details.
     ThreadPool object may be passed to speedup the computation.
     '''
-    detector = sift.SIFT
+    detector = util_sift.SIFT
     params = [(1.0, 0.0)]
     for t in 2**(0.5*np.arange(1,6)):
         for phi in np.arange(start, end, inc / t):

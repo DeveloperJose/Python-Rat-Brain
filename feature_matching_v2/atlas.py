@@ -7,7 +7,7 @@ logger = logbook.Logger(__name__)
 
 import util
 import config
-import sift
+import util_sift
 
 def load_image(nissl_level, color_flags=cv2.IMREAD_COLOR):
     filename = config.NISSL_PREFIX + str(nissl_level).zfill(config.NISSL_DIGITS) + config.NISSL_EXT
@@ -47,8 +47,8 @@ def __create_sift(nissl_level, path):
     #logger.debug("Resized region from {0} to {1}", old_shape, nissl.shape)
 
     # Extract SIFT from the image and pickle it
-    kp, des = sift.extract_sift(im_nissl)
-    pickled_sift = sift.pickle_sift(kp, des)
+    kp, des = util_sift.extract_sift(im_nissl)
+    pickled_sift = util_sift.pickle_sift(kp, des)
 
     # Save the data to the path
     pickle.dump(pickled_sift, open(path, "wb"))
@@ -60,5 +60,5 @@ def __load_sift(path):
         return None, None
 
     raw_sift = pickle.load(open(path, "rb"))
-    kp, des = sift.unpickle_sift(raw_sift)
+    kp, des = util_sift.unpickle_sift(raw_sift)
     return kp, des

@@ -4,7 +4,7 @@ from multiprocessing.pool import ThreadPool
 import numpy as np
 import cv2
 
-import sift
+import util_sift
 import config
 import matching
 import logging
@@ -56,7 +56,7 @@ class MatchingThread(QThread):
         self.total = 1
 
         # Compute SIFT for region before starting
-        self.kp1, self.des1 = sift.extract_sift(self.im)
+        self.kp1, self.des1 = util_sift.extract_sift(self.im)
 
         # Set multithreading if capable
         if config.MULTITHREAD:

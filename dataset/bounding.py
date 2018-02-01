@@ -54,9 +54,14 @@ def process_atlas(folder, prefix, ext, zfill, plate_min, plate_max):
 
     return np.asarray(atlas_im), np.asarray(atlas_label), np.asarray(atlas_original)
 
-print("Processing atlases...")
-s_im, s_label, s_original = process_atlas('atlas_s', 'Level-', '.jpg', 2, 1, 73)
-pw_im, pw_label, pw_original = process_atlas('atlas_pw', 'RBSC7-', '.jpg', 3, 1, 161)
-np.savez_compressed('atlas_s_cropped', images=s_im, labels=s_label, originals=s_original)
-np.savez_compressed('atlas_pw_cropped', images=pw_im, labels=pw_label, originals=pw_original)
-print("Done")
+if __name__ == '__main__':
+    print("Processing atlases...")
+    time_start = timer()
+
+    s_im, s_label, s_original = process_atlas('atlas_s', 'Level-', '.jpg', 2, 1, 73)
+    pw_im, pw_label, pw_original = process_atlas('atlas_pw', 'RBSC7-', '.jpg', 3, 1, 161)
+    np.savez_compressed('S_BB_V', images=s_im, labels=s_label, originals=s_original)
+    np.savez_compressed('PW_BB_V', images=pw_im, labels=pw_label, originals=pw_original)
+
+    duration = timer() - time_start
+    print("Program took %.3fs" % duration)
