@@ -1,42 +1,14 @@
 # Author: Jose G Perez
-# Version: 1.1
+# Version: 1.2
 # Last Modified: Jan 31st, 2018
+from timeit import default_timer as timer
 from PIL import Image
-import pylab as plt
 import numpy as np
 import os
 
-FIGURE_IDX = 0
-def imshow(im, title=''):
-    global FIGURE_IDX
-    plt.figure(FIGURE_IDX)
-    plt.axis('off')
-    plt.tick_params(axis='both',
-                    left='off', top='off', right='off', bottom='off',
-                    labelleft='off', labeltop='off', labelright='off', labelbottom='off')
-    plt.title(title)
-    plt.imshow(im)
-
-    FIGURE_IDX += 1
-
-def gallery(array, ncols=3):
-    # Grayscale
-    if len(array.shape) == 3:
-        nindex, height, width = array.shape
-        nrows = nindex//ncols
-        result = (array.reshape(nrows, ncols, height, width)
-                  .swapaxes(1,2)
-                  .reshape(height*nrows, width*ncols))
-        return result
-    # Color
-    else:
-        nindex, height, width, intensity = array.shape
-        nrows = nindex//ncols
-        # want result.shape = (height*nrows, width*ncols, intensity)
-        result = (array.reshape(nrows, ncols, height, width, intensity)
-                  .swapaxes(1,2)
-                  .reshape(height*nrows, width*ncols, intensity))
-        return result
+WIDTH = 240
+HEIGHT = 300
+WHITE_THRESHOLD = 235
 
 def process_plate(filename, split=False):
     im = Image.open(filename).convert("L")
@@ -82,19 +54,9 @@ def process_atlas(folder, prefix, ext, zfill, plate_min, plate_max):
 
     return np.asarray(atlas_im), np.asarray(atlas_label), np.asarray(atlas_original)
 
-WIDTH = 240
-HEIGHT = 300
-WHITE_THRESHOLD = 235
-
+print("Processing atlases...")
 s_im, s_label, s_original = process_atlas('atlas_s', 'Level-', '.jpg', 2, 1, 73)
 pw_im, pw_label, pw_original = process_atlas('atlas_pw', 'RBSC7-', '.jpg', 3, 1, 161)
 np.savez_compressed('atlas_s_cropped', images=s_im, labels=s_label, originals=s_original)
 np.savez_compressed('atlas_pw_cropped', images=pw_im, labels=pw_label, originals=pw_original)
-
-plt.gray()
-
-imshow(gallery(s_im[:20], 5), 'S 1-19 Cropped')
-imshow(gallery(s_original[:20], 5), 'S 1-19 Original')
-
-imshow(gallery(pw_im[:20], 5), 'PW 1-19 Cropped')
-imshow(gallery(pw_original[:20], 5), 'PW 1-19 Original')
+print("Done")
