@@ -343,9 +343,8 @@ pw_penalty = 100
 s_penalty = 200
 ed = dynamic_prog(norm_sm(sm_matches, 100), pw_penalty, s_penalty)
 aoi = ed[32:35, 38:41]
-best_pw = np.argmax(ed,axis=0)
-best_s = np.argmax(ed,axis=1)
-# PW68 is IDX:39
-print("PW68 best match", s_label[best_pw[39]])
-print("S33 best match", pw_label[best_s[33]])
+best_pw = s_label[np.argmax(ed,axis=0)]
+best_s = pw_label[np.argmax(ed,axis=1)]
+print("PW68 best match", best_pw[np.where(pw_label==68)])
+print("S33 best match", best_s[np.where(s_label==33)])
 im_overlay = overlay(ed, sm_matches)
