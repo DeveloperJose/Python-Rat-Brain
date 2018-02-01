@@ -1,4 +1,6 @@
-# Author: Jose G Perez <josegperez@mail.com
+# Author: Jose G Perez
+# Version: 1.1
+# Last Modified: Jan 31st, 2018
 from PIL import Image
 import pylab as plt
 import numpy as np
@@ -60,54 +62,33 @@ def process_plate(filename, split=False):
 
     return im, im_cropped
 
+def process_atlas(folder, prefix, ext, zfill, plate_min, plate_max):
+    atlas_im = []
+    atlas_label = []
+    atlas_original = []
+    for plate in range(plate_min, plate_max+1):
+        filename = prefix + str(plate).zfill(zfill) + ext
+        filename = os.path.join(folder, filename)
+
+        if not os.path.exists(filename):
+            print("Couldn't find ", filename, ", skipping")
+            continue
+
+        im, im_cropped = process_plate(filename)
+
+        atlas_im.append(im_cropped)
+        atlas_label.append(plate)
+        atlas_original.append(im)
+
+    return np.asarray(atlas_im), np.asarray(atlas_label), np.asarray(atlas_original)
 
 WIDTH = 240
 HEIGHT = 300
 WHITE_THRESHOLD = 235
 
-s_im = np.empty((73, HEIGHT, WIDTH), dtype=np.uint8)
-s_original = np.empty((73, HEIGHT, WIDTH), dtype=np.uint8)
-s_label = np.empty(73, dtype=np.uint8)
-for plate in range(1, 73+1): # S Plates [01, ..., 73]
-    filename = 'Level-' + str(plate).zfill(2) + '.jpg'
-    filename = os.path.join('atlas_s', filename)
-
-    if not os.path.exists(filename):
-        print("Couldn't find ", filename, ", skipping")
-        continue
-
-    im, im_cropped = process_plate(filename)
-
-    # Account for arrays starting at 0
-    index = plate-1
-
-    s_original[index] = im
-    s_im[index] = im_cropped
-    s_label[index] = plate
-
+s_im, s_label, s_original = process_atlas('atlas_s', 'Level-', '.jpg', 2, 1, 73)
+pw_im, pw_label, pw_original = process_atlas('atlas_pw', 'RBSC7-', '.jpg', 3, 1, 161)
 np.savez_compressed('atlas_s_cropped', images=s_im, labels=s_label, originals=s_original)
-
-# 89 of 161 use Nissl
-pw_im = np.empty((89, HEIGHT, WIDTH), dtype=np.uint8)
-pw_original = np.empty((89, HEIGHT, WIDTH), dtype=np.uint8)
-pw_label = np.empty(89, dtype=np.uint8)
-index = 0
-for plate in range(0, 161):
-    filename = 'RBSC7-' + str(plate+1).zfill(3) + '.jpg'
-    filename = os.path.join('atlas_pw', filename)
-
-    if not os.path.exists(filename):
-         print("Couldn't find ", filename, ", skipping")
-         continue
-
-    im, im_cropped = process_plate(filename, True)
-
-    pw_original[index] = im
-    pw_im[index] = im_cropped
-    pw_label[index] = plate
-
-    index += 1
-
 np.savez_compressed('atlas_pw_cropped', images=pw_im, labels=pw_label, originals=pw_original)
 
 plt.gray()
