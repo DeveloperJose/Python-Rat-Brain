@@ -13,7 +13,7 @@ logbook.StreamHandler(sys.stdout, level=logbook.DEBUG, format_string=config.LOGG
 import util
 import timing
 import warping
-import util_sift
+import sift
 import cv2
 from graph import Graph
 from dialog import ResultsDialog
@@ -251,7 +251,7 @@ class Prototype(QWidget):
 
         # Check if the user would like to see the region keypoints
         if config.UI_SHOW_KP:
-            kp, des = util_sift.extract_sift(im_region)
+            kp, des = sift.extract_sift(im_region)
             im_region = cv2.drawKeypoints(im_region, kp, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
         self.canvas_region.imshow(im_region)
