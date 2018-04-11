@@ -7,6 +7,8 @@ import pylab as plt
 from multiprocessing.pool import ThreadPool
 from timeit import default_timer as timer
 
+from util_sift import load_sift
+from util_matching import match_details
 INDIVIDUAL = False
 
 np.random.seed(1)
@@ -60,73 +62,8 @@ def gallery(array, ncols=3):
                   .reshape(height*nrows, width*ncols, intensity))
         return result
 
-def match(kp1, des1, kp2, des2):
-    matches = []
-    stat_s_diff = set()
-    stat_d_dist = set()
-    stat_resp_kp1 = set()
-    stat_resp_kp2 = set()
-    stat_rad = set()
-
-    for idx1 in range(len(kp1)):
-        kpa = kp1[idx1]
-        stat_resp_kp1.add(kpa.response)
-        if kpa.response < RESPONSE_THRESHOLD:
-            continue
-
-        dpa = des1[idx1]
-        best_distance = float('inf')
-        best_idx2 = -1
-
-        for idx2 in range(len(kp2)):
-            kpb = kp2[idx2]
-            stat_resp_kp2.add(kpb.response)
-            if kpb.response < RESPONSE_THRESHOLD:
-                continue
-            dpb = des2[idx2]
-
-            d_pt_squared = (kpb.pt[0] - kpa.pt[0]) ** 2 + (kpb.pt[1] - kpa.pt[1]) ** 2
-            stat_rad.add(np.linalg.norm(np.array(kpb.pt)-np.array(kpa.pt)))
-            if d_pt_squared >= RADIUS_SQUARED:
-                continue
-
-            scale_diff = abs(kpa.size - kpb.size)
-            stat_s_diff.add(scale_diff)
-            if scale_diff > SCALE_THRESHOLD:
-                continue
-
-            d_des = np.linalg.norm(dpb - dpa)
-            stat_d_dist.add(d_des)
-            if d_des < best_distance:
-                best_distance = d_des
-                best_idx2 = idx2
-
-        if best_idx2 == -1 or best_distance > DISTANCE_THRESHOLD:
-            continue
-
-        match = cv2.DMatch()
-        match.queryIdx = idx1
-        match.imgIdx = idx1
-        match.trainIdx = best_idx2
-        match.distance = best_distance
-        matches.append(match)
-
-    print("\t[ScaleD] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_s_diff) , min(stat_s_diff), sum(stat_s_diff) / len(stat_s_diff)))
-    print("\t[DescD] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_d_dist),  min(stat_d_dist), sum(stat_d_dist) / len(stat_d_dist)))
-    print("\t[RespKp1] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_resp_kp1), min(stat_resp_kp1), sum(stat_resp_kp1) / len(stat_resp_kp1)))
-    print("\t[RespKp2] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_resp_kp2), min(stat_resp_kp2), sum(stat_resp_kp2) / len(stat_resp_kp2)))
-    print("\t[Rad] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_rad), min(stat_rad), sum(stat_rad) / len(stat_rad)))
-
-    # print("Total Matches", len(matches), "/", len(kp1) * len(kp2))
-    return matches
-
-s_data = np.load('S_BB_V1.npz')
-s_im = s_data['images']
-s_label = s_data['labels']
-
-pw_data = np.load('PW_BB_V1.npz')
-pw_im = pw_data['images']
-pw_label = pw_data['labels']
+s_im, s_label, s_kp, s_des = load_sift('S_BB_V1_SIFT.npz')
+pw_im, pw_label, pw_kp, pw_des = load_sift('PW_BB_V1_SIFT.npz')
 
 time_start = timer()
 # ==== MATCHING SYSTEM BEGIN
@@ -143,7 +80,12 @@ if INDIVIDUAL:
     kp1, des1 = SIFT.detectAndCompute(im1, None)
     kp2, des2 = SIFT.detectAndCompute(im2, None)
 
-    matches = match(kp1, des1, kp2, des2)
+    m, matches, stat_s_diff, stat_d_dist, stat_resp_kp1, stat_resp_kp2, stat_rad  = match_details(kp1, des1, kp2, des2)
+    print("\t[ScaleD] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_s_diff) , min(stat_s_diff), sum(stat_s_diff) / len(stat_s_diff)))
+    print("\t[DescD] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_d_dist),  min(stat_d_dist), sum(stat_d_dist) / len(stat_d_dist)))
+    print("\t[RespKp1] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_resp_kp1), min(stat_resp_kp1), sum(stat_resp_kp1) / len(stat_resp_kp1)))
+    print("\t[RespKp2] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_resp_kp2), min(stat_resp_kp2), sum(stat_resp_kp2) / len(stat_resp_kp2)))
+    print("\t[Rad] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_rad), min(stat_rad), sum(stat_rad) / len(stat_rad)))
 
     # For comparison, the selected SIFT keypoints
     # BF = cv2.BFMatcher(normType=cv2.NORM_L2, crossCheck=True)
@@ -181,8 +123,10 @@ if INDIVIDUAL:
     imshow(im_matches, 'New Matching')
     imshow(im_ransac, 'RANSAC')
 else:
-    im2 = pw_im[np.where(pw_label == 68)[0][0]]
-    kp2, des2 = SIFT.detectAndCompute(im2, None)
+    # im2 = pw_im[np.where(pw_label == 68)[0][0]]
+    pw_idx = 33
+    im2 = pw_im[pw_idx]
+    (kp2, des2) = (pw_kp[pw_idx], pw_des[pw_idx])
 
     all_matches = []
     all_im = []
@@ -191,16 +135,26 @@ else:
 
     cidx = 0
     for sidx in range(25, 40):
-        if sidx == 32:
-            print('=[P]', end='')
+        # if sidx == 32:
+        #     print('=[P]', end='')
         print("S", (sidx + 1), "CIDX", cidx)
 
-        im1 = s_im[sidx]
-        kp1, des1 = SIFT.detectAndCompute(im1, None)
-        matches = match(kp1, des1, kp2, des2)
+        (im1, kp1, des1) = (s_im[sidx], s_kp[sidx], s_des[sidx])
+        m, matches, stat_s_diff, stat_d_dist, stat_resp_kp1, stat_resp_kp2, stat_rad = match_details(kp1, des1, kp2,
+                                                                                                     des2)
+        # print("\t[ScaleD] Max %.3f, Min %.3f, Avg %.3f" % (
+        # max(stat_s_diff), min(stat_s_diff), sum(stat_s_diff) / len(stat_s_diff)))
+        # print("\t[DescD] Max %.3f, Min %.3f, Avg %.3f" % (
+        # max(stat_d_dist), min(stat_d_dist), sum(stat_d_dist) / len(stat_d_dist)))
+        # print("\t[RespKp1] Max %.3f, Min %.3f, Avg %.3f" % (
+        # max(stat_resp_kp1), min(stat_resp_kp1), sum(stat_resp_kp1) / len(stat_resp_kp1)))
+        # print("\t[RespKp2] Max %.3f, Min %.3f, Avg %.3f" % (
+        # max(stat_resp_kp2), min(stat_resp_kp2), sum(stat_resp_kp2) / len(stat_resp_kp2)))
+        # print("\t[Rad] Max %.3f, Min %.3f, Avg %.3f" % (max(stat_rad), min(stat_rad), sum(stat_rad) / len(stat_rad)))
+
         metric = len(matches) / (len(kp1) + len(kp2) - len(matches))
 
-        print("\tMetric w/PW68 %.3f, Matches %d" % (metric, len(matches)))
+        print("\tMetric w/PW %s is %.3f, Matches %d" % (pw_idx, metric, len(matches)))
 
         all_matches.append(matches)
         all_im.append(im1)
@@ -208,10 +162,10 @@ else:
         all_des.append(des1)
         cidx += 1
 
-    index = 7
-    imshow(cv2.drawMatches(all_im[index], all_kp[index], im2, kp2, all_matches[index], None, flags=2), '[P]SW33')
-    index = 8
-    imshow(cv2.drawMatches(all_im[index], all_kp[index], im2, kp2, all_matches[index], None, flags=2), 'SW34')
+    # index = 7
+    # imshow(cv2.drawMatches(all_im[index], all_kp[index], im2, kp2, all_matches[index], None, flags=2), '[P]SW33')
+    # index = 8
+    # imshow(cv2.drawMatches(all_im[index], all_kp[index], im2, kp2, all_matches[index], None, flags=2), 'SW34')
 
 duration = timer() - time_start
 print("Program took %.3fs" % duration)

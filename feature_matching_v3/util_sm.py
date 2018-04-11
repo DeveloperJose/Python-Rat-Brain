@@ -27,6 +27,12 @@ def norm2_sm(sm, max_value=255):
         im_result[idx] = (norm*max_value).reshape(1, sm.shape[1])
     return im_result
 
+def norm_prob_sm(sm):
+    norm = np.zeros_like(sm)
+    for idx in range(sm.shape[0]):
+        norm[idx] = sm[idx] / np.sum(sm[idx])
+    return norm
+
 def norm_sm(sm, max_value=255, min_value=0):
     im_result = np.zeros_like(sm)
     for idx in range(sm.shape[0]):
