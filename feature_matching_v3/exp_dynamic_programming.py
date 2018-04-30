@@ -2,6 +2,7 @@
 # Version 1.0
 # Last Modified: January 31, 2018
 import numpy as np
+from skimage import color
 from util_im import imshow_matches
 from util_sm import load_sm, norm_sm, norm_prob_sm
 from util_sift import precompute_sift, load_sift
@@ -18,34 +19,103 @@ def dynamic_prog(sm, pw_penalty, s_penalty):
     dir = np.zeros_like(ed)
     ed[:,0] = np.arange(ed.shape[0]) * s_penalty
     ed[0,:] = np.arange(ed.shape[1]) * pw_penalty
+    # ed[:,0] = ed[0,:] = 0
 
     for i in range(1,ed.shape[0]):
         for j in range(1,ed.shape[1]):
-            choices = [ed[i, j-1] - pw_penalty, # 0 = top
+            choices = [ed[i,j-1] - pw_penalty, # 0 = top
                        ed[i-1,j-1] + sm[i-1,j-1], # 1 = diagonal
-                       ed[i-1][j] - s_penalty] # 2 = left
+                       ed[i-1,j] - s_penalty] # 2 = left
             idx = np.argmax(choices)
             dir[i,j]=idx
             ed[i,j]=choices[idx]
-    return ed, dir
+    return ed[1:,1:], dir.astype(np.uint8)[1:,1:]
+    # return ed, dir.astype(np.uint8)
 
-def overlay(ed_matrix, sm):
-    from skimage import color
-    norm = norm_sm(sm).astype(np.uint8)
-    color_mask = np.zeros((73,89,3))
-    for sidx in range(73):
-        pw_row = ed_matrix[sidx]
-        best_pw = np.argmax(pw_row)
-        color_mask[sidx, best_pw] = [0, 0, 255]
-        norm[sidx, best_pw] = 225
+def get_pairs(dir):
+    sidx = dir.shape[0]-1
+    pwidx = dir.shape[1]-1
+    pairs = []
+    while sidx > 0 and pwidx > 0:
+        next_dir = dir[sidx, pwidx]
+        pairs.append([sidx, pwidx])
+        if next_dir == 0:
+            sidx -= 1
+        elif next_dir == 1:
+            sidx -= 1
+            pwidx -= 1
+        else:
+            pwidx -= 1
+    return np.array(pairs)
 
-    img_color = np.stack((norm,)*3,axis=2)
+def pair_metric(sm_metric, pairs):
+    best6_pw = get_best_pw(sm_metric, pairs, 6)
+    best11_pw = get_best_pw(sm_metric, pairs, 11)
+    best23_pw = get_best_pw(sm_metric, pairs, 23)
+    best33_pw = get_best_pw(sm_metric, pairs, 33)
+
+    # PW8 S6, PW11 S11, PW42 S23, PW68 S33,
+    # m += np.count_nonzero(best6_pw == np.where(pw_label == 8))
+    # m += np.count_nonzero(best11_pw == np.where(pw_label == 11))
+    # m += np.count_nonzero(best23_pw == np.where(pw_label == 42))
+    # m += np.count_nonzero(best33_pw == np.where(pw_label == 68))
+    return np.min(abs(best6_pw - np.where(pw_label == 8))) + \
+         np.min(abs(best11_pw - np.where(pw_label == 11))) + \
+         np.min(abs(best23_pw - np.where(pw_label == 42))) + \
+         np.min(abs(best33_pw - np.where(pw_label == 68)))
+
+def overlay(dir, sm):
+    bg = norm_sm(sm, 255).astype(np.uint8)
+    color_mask = np.zeros((dir.shape[0],dir.shape[1],3))
+    # Allows for the visualization of complete ed and dir
+    if dir.shape[0] == 74:
+        zeros = np.zeros_like(dir)
+        zeros[1:,1:] = bg
+        bg = zeros
+
+    sidx = dir.shape[0]-1
+    pwidx = dir.shape[1]-1
+    count = 0
+    path = ['START']
+    pairs = []
+    while sidx > 0 and pwidx > 0:
+        count += 1
+        color_mask[sidx, pwidx] = [0, 0, 255]
+        bg[sidx, pwidx] = 255
+        next_dir = dir[sidx, pwidx]
+        pairs.append([sidx, pwidx])
+        if next_dir == 0:
+            sidx -= 1
+            path.append('T')
+        elif next_dir == 1:
+            sidx -= 1
+            pwidx -= 1
+            path.append('D')
+        else:
+            pwidx -= 1
+            path.append('L')
+
+    # PW8 S6, PW11 S11, PW42 S23, PW68 S33,
+    color_mask[np.where(s_label == 6), np.where(pw_label == 8)] = [255, 0, 0]
+    bg[np.where(s_label == 6), np.where(pw_label == 8)] = 255
+
+    color_mask[np.where(s_label == 11), np.where(pw_label == 11)] = [255, 0, 0]
+    bg[np.where(s_label == 11), np.where(pw_label == 11)] = 255
+
+    color_mask[np.where(s_label == 23), np.where(pw_label == 42)] = [255, 0, 0]
+    bg[np.where(s_label == 23), np.where(pw_label == 42)] = 255
+
+    color_mask[np.where(s_label == 33), np.where(pw_label == 68)] = [255, 0, 0]
+    bg[np.where(s_label == 33), np.where(pw_label == 68)] = 255
+
+    print("path", count, path)
+    img_color = np.stack((bg,)*3,axis=2)
     img_hsv = color.rgb2hsv(img_color)
     color_mask_hsv = color.rgb2hsv(color_mask)
     img_hsv[..., 0] = color_mask_hsv[..., 0]
     img_hsv[..., 1] = color_mask_hsv[..., 1]
     im_overlay = color.hsv2rgb(img_hsv)
-    return im_overlay
+    return im_overlay, np.array(pairs)
 
 def error(best_pw, pw_plate, s_plate):
     # s_idx = int(np.argwhere(s_label == s_plate))
@@ -55,7 +125,109 @@ def error(best_pw, pw_plate, s_plate):
 
     return abs(pred_s - s_plate)
 
+def get_best_pw(sm_metric, pairs, s_plate):
+    # Indices start at 0, plates start at 1
+    sidx = s_plate-1
+
+    pidx = np.where(pairs[:, 0] == sidx)
+    matches = pairs[pidx, 1].flatten()
+    # return pw_label[matches] if len(matches >= 1) else -1
+    return pw_label[matches] if len(matches >= 1) else np.array([np.inf])
+    # if len(matches) > 1:
+    #     metrics = sm_metric[sidx,matches]
+    #     best_idx = np.argmax(metrics)
+    #     return int(pw_label[matches[best_idx]])
+    # elif len(matches) == 1:
+    #     # Convert from PW Indices to PW Labels
+    #     return int(pw_label[matches])
+    # else:
+    #     return -1
+
 if __name__ == '__main__':
+    sm_matches, sm_metric = load_sm('sm_v2', s_kp, pw_kp)
+    # norm = norm_sm(sm_metric, 100)
+    norm = norm_prob_sm(sm_metric)
+
+    # lowest_error = np.inf
+    # best_pw = -1
+    # best_s = -1
+    # for pw_penalty in np.arange(0.4, 0.5, 0.001):
+    #     for s_penalty in np.arange(0.4, 0.5, 0.001):
+    #         ed, dir = dynamic_prog(norm, pw_penalty=pw_penalty, s_penalty=s_penalty)
+    #         pairs = get_pairs(dir)
+    #         metric = pair_metric(sm_metric, pairs)
+    #         if metric < lowest_error:
+    #             print("New error", metric, pw_penalty, s_penalty)
+    #             lowest_error = metric
+    #             best_pw = pw_penalty
+    #             best_s = s_penalty
+    # ed, dir = dynamic_prog(norm, pw_penalty=best_pw, s_penalty=best_s)
+    # im_overlay, pairs = overlay(dir, sm_metric)
+    # best6_pw = get_best_pw(sm_metric,pairs,6)
+    # best11_pw = get_best_pw(sm_metric,pairs,11)
+    # best23_pw = get_best_pw(sm_metric,pairs,23)
+    # best33_pw = get_best_pw(sm_metric,pairs,33)
+    # print("[PW8=%s], [PW11=%s], [PW42=%s [PW68=%s]" % (best6_pw, best11_pw, best23_pw, best33_pw))
+    #
+    # imshow_matches(im_overlay, 'Dynamic Programming')
+
+    # best_pw = 0.456
+    # best_s = 0.4
+    # ed, dir = dynamic_prog(norm, pw_penalty=best_pw, s_penalty=best_s)
+    # pairs = get_pairs(dir)
+    # metric = pair_metric(sm_metric, pairs)
+    # im_overlay, pairs = overlay(dir, sm_metric)
+    # best6_pw = get_best_pw(sm_metric,pairs,6)
+    # best11_pw = get_best_pw(sm_metric,pairs,11)
+    # best23_pw = get_best_pw(sm_metric,pairs,23)
+    # best33_pw = get_best_pw(sm_metric,pairs,33)
+    # print("[PW8=%s], [PW11=%s], [PW42=%s [PW68=%s]" % (best6_pw, best11_pw, best23_pw, best33_pw))
+    #
+    # imshow_matches(im_overlay, 'Dynamic Programming')
+
+
+    import pylab as plt
+    fig, axes = plt.subplots(nrows=2, ncols=2)
+    plt.subplots_adjust(left=0.25, bottom=0.25)
+    plt.set_cmap(plt.get_cmap('hot'))
+    # axes.set_title('Dynamic')
+
+    axes[0,0].set_title('Similarity Matrix [Metric]')
+    axes[0,0].imshow(sm_metric)
+
+    axes[0,1].set_title('SM Norm')
+    axes[0,1].imshow(norm)
+
+    axes[1,0].set_title('ED')
+    axes[1,1].set_title('Overlay')
+
+    # Sliders
+    axcolor = 'lightgoldenrodyellow'
+    axfreq = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor=axcolor)
+    axamp = plt.axes([0.25, 0.15, 0.65, 0.03], facecolor=axcolor)
+    s_pwp = plt.Slider(axfreq, 'PW Penalty', 0, 1, valinit=np.mean(norm), valfmt='%.5f')
+    s_sp = plt.Slider(axamp, 'S Penalty', 0, 1, valinit=np.mean(norm), valfmt='%.5f')
+
+    def update(val):
+        pw_penalty = s_pwp.val
+        s_penalty = s_sp.val
+
+        ed, dir = dynamic_prog(norm, pw_penalty=pw_penalty, s_penalty=s_penalty)
+        im_overlay, pairs = overlay(dir, sm_metric)
+
+        best6_pw = get_best_pw(sm_metric,pairs,6)
+        best11_pw = get_best_pw(sm_metric,pairs,11)
+        best23_pw = get_best_pw(sm_metric,pairs,23)
+        best33_pw = get_best_pw(sm_metric,pairs,33)
+        print("[PW8=%s], [PW11=%s], [PW42=%s [PW68=%s]" % (best6_pw, best11_pw, best23_pw, best33_pw))
+
+        axes[1,0].imshow(ed)
+        axes[1,1].imshow(im_overlay)
+        fig.canvas.draw_idle()
+
+    s_pwp.on_changed(update)
+    s_sp.on_changed(update)
+
     # best_pwp = 0
     # best_sps = 0
     # best_total = np.inf
@@ -80,48 +252,6 @@ if __name__ == '__main__':
     # best_sps = 200
     # ed, ed2 = dynamic_prog(norm, pw_penalty=best_pwp, s_penalty=best_sps)
     # im_overlay = overlay(ed, norm)
-
-    sm_matches, sm_metric = load_sm('sm_v2', s_kp, pw_kp)
-    # norm = norm_sm(sm_metric, 100)
-    norm = norm_prob_sm(sm_metric)
-
-    import pylab as plt
-    fig, axes = plt.subplots(nrows=2, ncols=2)
-    plt.subplots_adjust(left=0.25, bottom=0.25)
-    plt.set_cmap(plt.get_cmap('hot'))
-    # axes.set_title('Dynamic')
-
-    axes[0,0].set_title('Similarity Matrix [Metric]')
-    axes[0,0].imshow(sm_metric)
-
-    axes[0,1].set_title('SM Norm')
-    axes[0,1].imshow(norm)
-
-    axes[1,0].set_title('ED')
-    axes[1,1].set_title('Overlay')
-
-    # Sliders
-    axcolor = 'lightgoldenrodyellow'
-    axfreq = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor=axcolor)
-    axamp = plt.axes([0.25, 0.15, 0.65, 0.03], facecolor=axcolor)
-    s_pwp = plt.Slider(axfreq, 'PW Penalty', 0, 2, valinit=np.mean(norm))
-    s_sp = plt.Slider(axamp, 'S Penalty', 0, 2, valinit=np.mean(norm))
-
-    def update(val):
-        pw_penalty = s_pwp.val
-        s_penalty = s_sp.val
-
-        ed, ed2 = dynamic_prog(norm, pw_penalty=pw_penalty, s_penalty=s_penalty)
-        im_overlay = overlay(ed, norm)
-
-        axes[1,0].imshow(ed)
-        axes[1,1].imshow(im_overlay)
-        fig.canvas.draw_idle()
-
-    s_pwp.on_changed(update)
-    s_sp.on_changed(update)
-
-    # fig.tight_layout()
 
     # imshow_matches(dynamic_prog(norm, pw_penalty=1, s_penalty=1)[1], '')
     # imshow_matches(overlay(dynamic_prog(sm_matches, 0.9, 0.1)[0], sm_matches), '')

@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2016 Aditya Phan
+Copyright (c) 2018 Jose G. Perez
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

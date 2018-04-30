@@ -14,6 +14,16 @@ def imshow(im, title=''):
     plt.imshow(im)
     return figure
 
+def imshow_matches__(im, title):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_xlabel('PW Level')
+    ax.set_ylabel('S Level')
+    ax.set_title(title)
+    plt.set_cmap(plt.get_cmap('hot'))
+    plt.imshow(im)
+
+
 def imshow_matches(im, title):
     fig = plt.figure()
     ax = fig.add_subplot(111)
