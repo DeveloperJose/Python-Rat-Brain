@@ -5,14 +5,14 @@ import numpy as np
 import os
 
 def load_sm(folder, s_kp, pw_kp):
-    sm_match = np.zeros((73,89))
-    sm_metric = np.zeros((73,89))
-    for sidx in range(73):
+    sm_match = np.zeros((s_kp.shape[0],pw_kp.shape[0]))
+    sm_metric = np.zeros((s_kp.shape[0],pw_kp.shape[0]))
+    for sidx in range(sm_match.shape[0]):
         path = os.path.join(folder, str(sidx) + '-M.npz')
         m = np.load(path)['m']
         count = []
         metric = []
-        for pidx in range(89):
+        for pidx in range(sm_match.shape[1]):
             pw_matches = m[pidx]
             count.append(len(pw_matches))
             metric.append(len(pw_matches) / (len(s_kp[sidx]) + len(pw_kp[pidx]) - len(pw_matches)))

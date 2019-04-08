@@ -16,7 +16,7 @@ def fetch_website(url):
     f = open(file_name, 'wb')
     meta = u.info()
     file_size = int(meta.getheaders("Content-Length")[0])
-    print "Downloading: %s Bytes: %s" % (file_name, file_size)
+    print("Downloading: %s Bytes: %s" % (file_name, file_size))
     
     file_size_dl = 0
     block_sz = 8192
@@ -29,13 +29,13 @@ def fetch_website(url):
         f.write(buffer)
         status = r"%10d  [%3.2f%%]" % (file_size_dl, file_size_dl * 100. / file_size)
         status = status + chr(8)*(len(status)+1)
-        print status,
+        print(status)
     
-    print "\n"
+    print("\n")
     f.close()
 
 # ---=== Main
-print "Starting fetching script"
+print("Starting fetching script")
 
 for i in range(1, 74):
     fetch_atlas_level(i)

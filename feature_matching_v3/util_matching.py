@@ -4,11 +4,11 @@
 import numpy as np
 import cv2
 import cProfile
-RADIUS = 25
+RADIUS = 25 # 25
 RADIUS_SQUARED = RADIUS ** 2
-SCALE_THRESHOLD = 3
-DISTANCE_THRESHOLD = 200
-RESPONSE_THRESHOLD = 0.01
+SCALE_THRESHOLD = 3 # 3
+DISTANCE_THRESHOLD = 200 # 200
+RESPONSE_THRESHOLD = 0.01 # 0.01
 
 def perform_match(s_idx):
     global s_kp, s_des, pw_kp, pw_des
