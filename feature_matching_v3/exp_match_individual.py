@@ -8,7 +8,7 @@ import cv2
 from util_sift import array_to_kp, precompute_sift, load_sift
 from util_matching import match
 from util_cv import match_to_cv
-from util_im import imshow
+from util_visualization import imshow
 
 precompute_sift('S_BB_V4', 'PW_BB_V4')
 s_im, s_label, s_kp, s_des = load_sift('S_BB_V4_SIFT.npz')

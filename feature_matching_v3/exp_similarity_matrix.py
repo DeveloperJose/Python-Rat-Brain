@@ -1,7 +1,7 @@
 # Author: Jose G Perez
 # Version 1.0
 # Last Modified: January 31, 2018
-from util_im import imshow_matches
+from util_visualization import imshow_matches
 from util_sm import load_sm, norm_sm
 from util_sift import precompute_sift, load_sift
 import pylab as plt

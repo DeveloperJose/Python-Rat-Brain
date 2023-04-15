@@ -2,7 +2,7 @@
 import numpy as np
 import pylab as plt
 import sys
-from util_im import imshow_matches
+from util_visualization import imshow_matches
 from util_sm import load_sm, norm_sm, norm_prob_sm
 from util_sift import precompute_sift, load_sift
 from skimage import color

@@ -149,21 +149,23 @@ def dynamic_prog_breg(sm, pw_penalty, s_penalty, b_s4, b_pw3):
     dir = np.zeros_like(ed)
 
     # Adjust bregma ranges so they are all negative
-    b_s4 = b_s4 - b_s4.max()
-    b_pw3 = b_pw3 - b_pw3.max()
+    # b_s4 = b_s4 - b_s4.max()
+    # b_pw3 = b_pw3 - b_pw3.max()
 
     # Append 0th bregma
-    b_s4 = np.insert(b_s4, 0, 0.001)
-    b_pw3 = np.insert(b_pw3, 0, 0.001)
+    # b_s4 = np.insert(b_s4, 0, 0.001)
+    # b_pw3 = np.insert(b_pw3, 0, 0.001)
+    alpha = 1
 
-    ed[:,0] = b_s4 * s_penalty
-    ed[0,:] = b_pw3 * pw_penalty
+    ed[:,0] = np.arange(ed.shape[0]) * -s_penalty
+    ed[0,:] = np.arange(ed.shape[1]) * -pw_penalty
     # ed[:,0] = ed[0,:] = 0
 
     for i in range(1,ed.shape[0]):
         for j in range(1,ed.shape[1]):
+            diff = np.abs(b_s4[i-1] - b_pw3[i-1])
             choices = [ed[i,j-1] - pw_penalty, # 0 = top
-                       ed[i-1,j-1] + sm[i-1,j-1], # 1 = diagonal
+                       ed[i-1,j-1] + (1 * sm[i-1,j-1]) - (alpha * diff) , # 1 = diagonal
                        ed[i-1,j] - s_penalty] # 2 = left
             idx = np.argmax(choices)
             dir[i,j]=idx

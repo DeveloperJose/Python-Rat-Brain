@@ -10,6 +10,7 @@ WIDTH = 240
 HEIGHT = 300
 WHITE_THRESHOLD = 235
 
+
 def process_plate(filename, split=False):
     im = Image.open(filename).convert("L")
 
@@ -36,6 +37,7 @@ def process_plate(filename, split=False):
 
     return im, im_cropped
 
+
 def process_atlas(folder, prefix, ext, zfill, plate_min, plate_max, split):
     atlas_im = []
     atlas_label = []
@@ -58,6 +60,7 @@ def process_atlas(folder, prefix, ext, zfill, plate_min, plate_max, split):
 
     print(']\n', end='', flush=True)
     return np.asarray(atlas_im), np.asarray(atlas_label), np.asarray(atlas_original)
+
 
 if __name__ == '__main__':
     print("===== Starting timer")
